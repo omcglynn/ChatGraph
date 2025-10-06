@@ -27,7 +27,10 @@ export default function App() {
     return () => subscription.unsubscribe()
   }, [])
   if (!session) {
-    return (<Auth supabaseClient={supabase} appearance={{ theme: ThemeSupa }} />)
+    return (<Auth 
+      supabaseClient={supabase} 
+      providers={['google']}
+      appearance={{ theme: ThemeSupa }} />)
   }
   else {
     return (<div>Logged in!</div>)

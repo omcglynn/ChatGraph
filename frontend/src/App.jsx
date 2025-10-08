@@ -29,6 +29,17 @@ export default function App() {
     setUser(null)
     setShowLogin(false)
   }
+  if (user) {
+    return (
+      <div className="App">
+        <header className="App-header">
+          <h2>Welcome, {user.email} </h2>
+          <p>This is your logged-in page. </p>
+          <button onClick={handleLogout}>Logout</button>
+        </header>
+      </div>
+    )
+  }
 
   return (
     <div className="App">
@@ -39,7 +50,7 @@ export default function App() {
 
         {user ? (
           <>
-            <p>✅ Logged in as <strong>{user.email}</strong></p>
+            <p>Logged in as <strong>{user.email}</strong></p>
             <button className="App-link" onClick={handleLogout}>
               Logout
             </button>

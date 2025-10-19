@@ -4,6 +4,8 @@ import { Auth } from '@supabase/auth-ui-react'
 import { ThemeSupa } from '@supabase/auth-ui-shared'
 import logo from './ChatGraphImage1.png'
 import './App.css'
+import Homepage from './Homepage'
+
 
 const supabase = createClient(
   'https://rpwqxdsidtbqtiitlnhr.supabase.co',     
@@ -32,11 +34,7 @@ export default function App() {
   if (user) {
     return (
       <div className="App">
-        <header className="App-header">
-          <h2>Welcome, {user.email} </h2>
-          <p>This is your logged-in page. </p>
-          <button onClick={handleLogout}>Logout</button>
-        </header>
+        <Homepage supabase={supabase} user={user} onLogout={handleLogout} />
       </div>
     )
   }

@@ -27,6 +27,12 @@ const tree = {
 function App() {
   const [showPanel, setShowPanel] = useState(true);
   const [panelWidth, setPanelWidth] = useState(500); // start with 500px
+  const [messages, setMessages] = useState([
+    { sender: 'User', text: 'Hello, AI!' },
+    { sender: 'AI', text: 'Hello! How can I assist you today?' },
+  ]);
+  const [input, setInput] = useState('');
+
   useEffect(() => {
     setPanelWidth(window.innerWidth * 0.5);
   }, []);
@@ -37,7 +43,20 @@ function App() {
     setPanelWidth(Math.max(200, Math.min(newWidth, maxWidth)));
   }
 
+  function handleSendMessage() {
+    if (input.trim() === '') return;
+    const newMessages = [...messages, { sender: 'User', text: input }];
+    setMessages(newMessages);
+    setInput('');
 
+    // Simulate AI response
+    setTimeout(() => {
+      setMessages((prevMessages) => [
+        ...prevMessages,
+        { sender: 'AI', text: 'This is a placeholder response.' },
+      ]);
+    }, 1000);
+  }
 
   function TreeNode({ node }) {
     return (
@@ -50,8 +69,7 @@ function App() {
     );
   }
 
-
-    return (
+  return (
     <div className="container">
       {showPanel && (
         <div
@@ -75,20 +93,32 @@ function App() {
         ></div>
       )}
 
-
       <div className="main">
         {!showPanel && (
           <button onClick={() => setShowPanel(true)}>Show Panel</button>
         )}
         <h1>Chat Placeholder</h1>
+        <div className="chat-box">
+          <div className="messages">
+            {messages.map((msg, index) => (
+              <div key={index} className={`message ${msg.sender.toLowerCase()}`}>
+                <strong>{msg.sender}:</strong> {msg.text}
+              </div>
+            ))}
+          </div>
+          <div className="input-area">
+            <input
+              type="text"
+              value={input}
+              onChange={(e) => setInput(e.target.value)}
+              placeholder="Type your message..."
+            />
+            <button onClick={handleSendMessage}>Send</button>
+          </div>
+        </div>
       </div>
     </div>
   );
-
-  
 }
-
-
-
 
 export default App

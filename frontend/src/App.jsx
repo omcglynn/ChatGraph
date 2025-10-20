@@ -69,13 +69,26 @@ export default function App() {
                 </div>
               </>
             ) : (
-              <div style={{ width: 400 }}>
-                <Auth
-                  supabaseClient={supabase}
-                  appearance={{ theme: ThemeSupa }}
-                  providers={['github', 'google']}
-                  redirectTo="http://localhost:5177"
-                />
+              <div className="login-container">
+                <div style={{ width: 400 }}>
+                  <Auth
+                    supabaseClient={supabase}
+                    appearance={{
+                      theme: ThemeSupa,
+                      style: {
+                        input: {
+                          backgroundColor: 'white', // White background for input fields
+                          color: 'black', // Black text color
+                          border: '1px solid #ccc', // Optional: Add a border
+                          borderRadius: '4px', // Optional: Add rounded corners
+                          padding: '8px', // Optional: Add padding
+                        },
+                      },
+                    }}
+                    providers={['github', 'google']}
+                    redirectTo="http://localhost:5177"
+                  />
+                </div>
               </div>
             )}
           </>

@@ -4,6 +4,8 @@ import { ThemeSupa } from '@supabase/auth-ui-shared'
 import logo from '../assets/ChatGraphImage1.png'
 import supabase from '../supabaseClient'
 import '../App.css'
+import "@xyflow/react/dist/style.css";
+
 
 export default function Entry({user}){
     const [showLogin, setShowLogin] = useState(false)

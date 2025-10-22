@@ -1,16 +1,10 @@
 import { useState, useEffect } from 'react'
-import { createClient } from '@supabase/supabase-js'
 import { Auth } from '@supabase/auth-ui-react'
 import { ThemeSupa } from '@supabase/auth-ui-shared'
-import logo from './ChatGraphImage1.png'
+import logo from './assets/ChatGraphImage1.png'
 import './App.css'
 import Homepage from './Homepage'
-
-
-const supabase = createClient(
-  'https://rpwqxdsidtbqtiitlnhr.supabase.co',     
-  'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InJwd3F4ZHNpZHRicXRpaXRsbmhyIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NTg3NDY3MjIsImV4cCI6MjA3NDMyMjcyMn0.5TWbLmF3iLGFjTY3Ms_CeRUzx8ncVU7sBYe4sku7qFQ'                      
-)
+import supabase from './supabaseClient'
 
 export default function App() {
   const [showLogin, setShowLogin] = useState(false)

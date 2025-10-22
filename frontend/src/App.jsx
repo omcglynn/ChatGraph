@@ -5,6 +5,8 @@ import './App.css'
 import Homepage from './views/Homepage'
 import Entry from './views/Entry'
 import supabase from './supabaseClient'
+import "@xyflow/react/dist/style.css";
+
 
 export default function App() {
   const [user, setUser] = useState(null)

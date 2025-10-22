@@ -1,5 +1,6 @@
 import React, { useState } from "react";
-import "../App.css";
+import Tree from "./Tree"; 
+import "../App.css"; 
 
 export default function Homepage({ user, onLogout }) {
   const [selectedChat, setSelectedChat] = useState(null);
@@ -39,69 +40,107 @@ export default function Homepage({ user, onLogout }) {
       id: 4,
       title: "Best Boston Sports Players",
       date: "8/29/2025",
-      summary: [
-        "David Ortiz..",
-        "Bobby Orr..",
-        "Tom Brady..",
-        "Larry Bird.."
-      ],
+      summary: ["David Ortiz", "Bobby Orr", "Tom Brady", "Larry Bird"],
     },
     {
-      id: 6,
+      id: 5,
       title: "Where in Cape Cod is the best to vacation in?",
       date: "8/16/2025",
-      summary: [
-        "Falmouth",
-        "Martha's Vineyard",
-        "Dennis",
-        "Mashpee",
-        "Nantucket"
-      ],
+      summary: ["Falmouth", "Martha's Vineyard", "Dennis", "Mashpee", "Nantucket"],
     },
   ];
 
   return (
-    <div className="container">
-      {/* Side coolumn for selecting chats */}
-      <aside className="sidebar">
-        <div className="search">
-          <input type="text" placeholder="Search chats..." />
+    <div style={{ display: "flex", height: "100vh", background: "#f9fafb" }}>
+      {/* Sidebar */}
+      <aside
+        style={{
+          width: "280px",
+          background: "#e0e7ff",
+          padding: "20px",
+          borderRight: "1px solid #c7d2fe",
+          overflowY: "auto",
+        }}
+      >
+        <div style={{ marginBottom: "10px" }}>
+          <input
+            type="text"
+            placeholder="Search chats..."
+            style={{
+              width: "100%",
+              padding: "8px",
+              borderRadius: "8px",
+              border: "1px solid #cbd5e1",
+            }}
+          />
         </div>
-        <div className="chat-list">
-          {chats.map((chat) => (
-            <div
-              key={chat.id}
-              className={`chat-item ${selectedChat?.id === chat.id ? "selected" : ""}`}
-              onClick={() => setSelectedChat(chat)}
-            >
-              <strong>{chat.title}</strong>
-              <div style={{ fontSize: "0.8rem", color: "#ccc" }}>{chat.date}</div>
+
+        {chats.map((chat) => (
+          <div
+            key={chat.id}
+            onClick={() => setSelectedChat(chat)}
+            style={{
+              padding: "10px",
+              marginBottom: "8px",
+              borderRadius: "10px",
+              background: selectedChat?.id === chat.id ? "#3b82f6" : "#ffffff",
+              color: selectedChat?.id === chat.id ? "#fff" : "#111827",
+              fontWeight: selectedChat?.id === chat.id ? "600" : "500",
+              cursor: "pointer",
+              transition: "all 0.2s ease-in-out",
+              boxShadow:
+                selectedChat?.id === chat.id
+                  ? "0 0 6px rgba(59,130,246,0.5)"
+                  : "0 0 2px rgba(0,0,0,0.1)",
+            }}
+          >
+            {chat.title}
+            <div style={{ fontSize: "0.8rem", color: selectedChat?.id === chat.id ? "#dbeafe" : "#6b7280" }}>
+              {chat.date}
             </div>
-          ))}
-        </div>
+          </div>
+        ))}
       </aside>
 
-      {/* Main column with selected chat */}
-      <main className="main">
-        <div className="main-header">
-          <h2>Welcome, {user?.email || "User"}</h2>
-          <button onClick={onLogout}>Logout</button>
+      {/* Main Content */}
+      <main style={{ flexGrow: 1, padding: "20px" }}>
+        <div
+          style={{
+            display: "flex",
+            justifyContent: "space-between",
+            alignItems: "center",
+            marginBottom: "20px",
+          }}
+        >
+          <h2 style={{ fontSize: "1.5rem", fontWeight: "700" }}>
+            Welcome, {user?.email || "User"}
+          </h2>
+          <button
+            onClick={onLogout}
+            style={{
+              background: "#ef4444",
+              color: "white",
+              padding: "6px 14px",
+              border: "none",
+              borderRadius: "6px",
+              cursor: "pointer",
+            }}
+          >
+            Logout
+          </button>
         </div>
 
-        <div className="main-content">
-          {selectedChat ? (
-            <div>
-              <h3>{selectedChat.title}</h3>
-              <p style={{ fontSize: "0.8rem", color: "#ddd" }}>{selectedChat.date}</p>
-              <ul>
-                {selectedChat.summary.map((line, idx) => (
-                  <li key={idx}>{line}</li>
-                ))}
-              </ul>
-            </div>
-          ) : (
-            <p>Select a chat to view details</p>
-          )}
+        {/* Tree visualization section */}
+        <div
+          style={{
+            background: "#fff",
+            borderRadius: "12px",
+            padding: "10px",
+            boxShadow: "0 1px 5px rgba(0,0,0,0.1)",
+            height: "80vh",
+          }}
+        >
+          <Tree user={user} selectedChat={selectedChat} />
         </div>
       </main>
     </div>

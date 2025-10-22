@@ -1,5 +1,5 @@
 import React, { useState } from "react";
-import "./App.css";
+import "../App.css";
 
 export default function Homepage({ user, onLogout }) {
   const [selectedChat, setSelectedChat] = useState(null);

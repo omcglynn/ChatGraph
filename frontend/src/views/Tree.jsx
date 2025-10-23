@@ -1,4 +1,3 @@
-
 import React, { useEffect, useCallback } from "react";
 import {
   ReactFlow,
@@ -8,6 +7,7 @@ import {
   Controls,
   Background,
   MiniMap,
+  useReactFlow,
 } from "@xyflow/react";
 
 import "@xyflow/react/dist/style.css";
@@ -15,6 +15,7 @@ import "@xyflow/react/dist/style.css";
 export default function Tree({ user, selectedChat }) {
   const [nodes, setNodes, onNodesChange] = useNodesState([]);
   const [edges, setEdges, onEdgesChange] = useEdgesState([]);
+  const { setCenter } = useReactFlow();
 
   const chats = [
     { id: "1", title: "Easy Italian Cuisine" },
@@ -25,7 +26,6 @@ export default function Tree({ user, selectedChat }) {
   ];
 
   useEffect(() => {
-
     const rootNode = {
       id: "root",
       type: "input",
@@ -41,7 +41,6 @@ export default function Tree({ user, selectedChat }) {
       },
     };
 
-    // arrange chat nodes below in a row
     const chatNodes = chats.map((chat, i) => ({
       id: chat.id,
       data: { label: chat.title },
@@ -67,6 +66,16 @@ export default function Tree({ user, selectedChat }) {
     setNodes([rootNode, ...chatNodes]);
     setEdges(chatEdges);
   }, [selectedChat, user]);
+  useEffect(() => {
+    if (!selectedChat) return;
+    const index = chats.findIndex((c) => c.id === selectedChat.id.toString());
+    if (index !== -1) {
+      const x = index * 220;
+      const y = 200;
+      setCenter(x, y, { zoom: 1.5, duration: 800 });
+
+    }
+  }, [selectedChat, setCenter]);
 
   const onConnect = useCallback(
     (params) => setEdges((eds) => addEdge({ ...params, animated: true }, eds)),
@@ -91,4 +100,3 @@ export default function Tree({ user, selectedChat }) {
     </div>
   );
 }
-

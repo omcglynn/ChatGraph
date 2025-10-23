@@ -1,6 +1,7 @@
 import React, { useState } from "react";
 import Tree from "./Tree"; 
 import "../App.css"; 
+import { ReactFlowProvider } from "@xyflow/react";
 
 export default function Homepage({ user, onLogout }) {
   const [selectedChat, setSelectedChat] = useState(null);
@@ -137,10 +138,12 @@ export default function Homepage({ user, onLogout }) {
             borderRadius: "12px",
             padding: "10px",
             boxShadow: "0 1px 5px rgba(0,0,0,0.1)",
-            height: "80vh",
+            height: "80vh", // must have fixed height
           }}
         >
-          <Tree user={user} selectedChat={selectedChat} />
+          <ReactFlowProvider>
+            <Tree user={user} selectedChat={selectedChat} />
+          </ReactFlowProvider>
         </div>
       </main>
     </div>

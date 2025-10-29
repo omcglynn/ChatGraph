@@ -138,7 +138,7 @@ export default function Homepage({ user, onLogout }) {
             borderRadius: "12px",
             padding: "10px",
             boxShadow: "0 1px 5px rgba(0,0,0,0.1)",
-            height: "80vh", // must have fixed height
+            height: "80vh", 
           }}
         >
           <ReactFlowProvider>

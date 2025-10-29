@@ -18,11 +18,48 @@ export default function Tree({ user, selectedChat }) {
   const { setCenter } = useReactFlow();
 
   const chats = [
-    { id: "1", title: "Easy Italian Cuisine" },
-    { id: "2", title: "Mitochondria Basics" },
-    { id: "3", title: "Quick Breakfasts" },
-    { id: "4", title: "Boston Sports" },
-    { id: "5", title: "Cape Cod Vacations" },
+    {
+      id: 1,
+      title: "Easy and quick Italian cuisine recipes...",
+      date: "9/22/2025",
+      summary: [
+        "Try our 15-min pasta recipes",
+        "Learn to make tiramisu like a pro",
+        "Discover authentic Italian sauces",
+      ],
+    },
+    {
+      id: 2,
+      title: "Is mitochondria the powerhouse of the cell?",
+      date: "9/18/2025",
+      summary: [
+        "Discussing cell biology basics",
+        "Why mitochondria matters",
+        "Exploring bioenergy processes",
+      ],
+    },
+    {
+      id: 3,
+      title: "5-Minute Breakfasts for Busy Mornings",
+      date: "9/1/2025",
+      summary: [
+        "Overnight oats variations",
+        "Microwave egg muffins",
+        "Smoothies with hidden veggies",
+      ],
+    },
+    {
+      id: 4,
+      title: "Best Boston Sports Players",
+      date: "8/29/2025",
+      summary: ["David Ortiz", "Bobby Orr", "Tom Brady", "Larry Bird"],
+    },
+    {
+      id: 5,
+      title: "Where in Cape Cod is the best to vacation in?",
+      date: "8/16/2025",
+      summary: ["Falmouth", "Martha's Vineyard", "Dennis", "Mashpee", "Nantucket"],
+    },
   ];
 
   useEffect(() => {
@@ -41,39 +78,72 @@ export default function Tree({ user, selectedChat }) {
       },
     };
 
-    const chatNodes = chats.map((chat, i) => ({
-      id: chat.id,
-      data: { label: chat.title },
-      position: { x: i * 220, y: 200 },
-      style: {
-        background: selectedChat?.id === chat.id ? "#DBEAFE" : "#fff",
-        border: selectedChat?.id === chat.id ? "3px solid #2563eb" : "2px solid #93c5fd",
-        borderRadius: "10px",
-        padding: "10px",
-        textAlign: "center",
-        cursor: "pointer",
-      },
-    }));
+    const chatNodes = [];
+    const summaryNodes = [];
+    const edgesList = [];
 
-    const chatEdges = chats.map((chat) => ({
-      id: `e-root-${chat.id}`,
-      source: "root",
-      target: chat.id,
-      animated: true,
-      style: { stroke: "#3b82f6", strokeWidth: 2 },
-    }));
+    chats.forEach((chat, i) => {
+      const chatNode = {
+        id: `chat-${chat.id}`,
+        data: { label: chat.title },
+        position: { x: i * 250, y: 200 },
+        style: {
+          background: selectedChat?.id === chat.id ? "#DBEAFE" : "#fff",
+          border: selectedChat?.id === chat.id ? "3px solid #2563eb" : "2px solid #93c5fd",
+          borderRadius: "10px",
+          padding: "10px",
+          textAlign: "center",
+          cursor: "pointer",
+        },
+      };
+      chatNodes.push(chatNode);
+      edgesList.push({
+        id: `e-root-${chat.id}`,
+        source: "root",
+        target: `chat-${chat.id}`,
+        animated: true,
+        style: { stroke: "#3b82f6", strokeWidth: 2 },
+      });
 
-    setNodes([rootNode, ...chatNodes]);
-    setEdges(chatEdges);
+      if (selectedChat?.id === chat.id) {
+        chat.summary.forEach((summaryItem, j) => {
+          const summaryNode = {
+            id: `chat-${chat.id}-summary-${j}`,
+            data: { label: summaryItem },
+            position: { x: i * 250, y: 350 + j * 120 },
+            style: {
+              background: "#fef9c3",
+              border: "2px solid #facc15",
+              borderRadius: "8px",
+              padding: "8px",
+              fontSize: "12px",
+              textAlign: "center",
+            },
+          };
+          summaryNodes.push(summaryNode);
+
+          edgesList.push({
+            id: `e-chat-${chat.id}-${j}`,
+            source: `chat-${chat.id}`,
+            target: `chat-${chat.id}-summary-${j}`,
+            animated: false,
+            style: { stroke: "#facc15", strokeWidth: 2 },
+          });
+        });
+      }
+    });
+
+    setNodes([rootNode, ...chatNodes, ...summaryNodes]);
+    setEdges(edgesList);
   }, [selectedChat, user]);
+
   useEffect(() => {
     if (!selectedChat) return;
-    const index = chats.findIndex((c) => c.id === selectedChat.id.toString());
+    const index = chats.findIndex((c) => c.id === selectedChat.id);
     if (index !== -1) {
-      const x = index * 220;
+      const x = index * 250;
       const y = 200;
       setCenter(x, y, { zoom: 1.5, duration: 800 });
-
     }
   }, [selectedChat, setCenter]);
 

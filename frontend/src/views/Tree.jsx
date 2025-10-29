@@ -110,7 +110,7 @@ export default function Tree({ user, selectedChat }) {
           const summaryNode = {
             id: `chat-${chat.id}-summary-${j}`,
             data: { label: summaryItem },
-            position: { x: i * 250, y: 350 + j * 120 },
+            position: { x: i * 250 + j * 200 - (chat.summary.length - 1) * 100, y: 400 },
             style: {
               background: "#fef9c3",
               border: "2px solid #facc15",
@@ -121,7 +121,7 @@ export default function Tree({ user, selectedChat }) {
             },
           };
           summaryNodes.push(summaryNode);
-
+        
           edgesList.push({
             id: `e-chat-${chat.id}-${j}`,
             source: `chat-${chat.id}`,
@@ -129,7 +129,7 @@ export default function Tree({ user, selectedChat }) {
             animated: false,
             style: { stroke: "#facc15", strokeWidth: 2 },
           });
-        });
+        });        
       }
     });
 

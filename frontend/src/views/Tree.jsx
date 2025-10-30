@@ -63,79 +63,94 @@ export default function Tree({ user, selectedChat }) {
   ];
 
   useEffect(() => {
-    const rootNode = {
-      id: "root",
-      type: "input",
-      data: { label: user?.email || "All Chats" },
-      position: { x: 350, y: 0 },
-      style: {
-        background: "#EFF6FF",
-        border: "2px solid #3b82f6",
-        borderRadius: "10px",
-        padding: "10px",
-        fontWeight: "bold",
-        textAlign: "center",
-      },
-    };
-
-    const chatNodes = [];
-    const summaryNodes = [];
-    const edgesList = [];
-
-    chats.forEach((chat, i) => {
-      const chatNode = {
-        id: `chat-${chat.id}`,
-        data: { label: chat.title },
-        position: { x: i * 250, y: 200 },
+    let nodesList = [];
+    let edgesList = [];
+  
+    if (selectedChat) {
+      const rootNode = {
+        id: `chat-${selectedChat.id}`,
+        type: "input",
+        data: { label: selectedChat.title },
+        position: { x: 350, y: 0 },
         style: {
-          background: selectedChat?.id === chat.id ? "#DBEAFE" : "#fff",
-          border: selectedChat?.id === chat.id ? "3px solid #2563eb" : "2px solid #93c5fd",
+          background: "#DBEAFE",
+          border: "3px solid #2563eb",
           borderRadius: "10px",
           padding: "10px",
+          fontWeight: "bold",
           textAlign: "center",
-          cursor: "pointer",
         },
       };
-      chatNodes.push(chatNode);
-      edgesList.push({
+  
+      const summaryNodes = selectedChat.summary.map((summaryItem, j) => ({
+        id: `summary-${j}`,
+        data: { label: summaryItem },
+        position: { x: 350 + j * 200 - (selectedChat.summary.length - 1) * 100, y: 200 },
+        style: {
+          background: "#fef9c3",
+          border: "2px solid #facc15",
+          borderRadius: "8px",
+          padding: "8px",
+          fontSize: "12px",
+          textAlign: "center",
+        },
+      }));
+  
+      edgesList = summaryNodes.map((n) => ({
+        id: `e-root-${n.id}`,
+        source: `chat-${selectedChat.id}`,
+        target: n.id,
+        style: { stroke: " #3b82f6", strokeWidth: 2 },
+      }));
+  
+      nodesList = [rootNode, ...summaryNodes];
+    } else {
+      const rootNode = {
+        id: "root",
+        type: "input",
+        data: { label: user?.email || "All Chats" },
+        position: { x: 350, y: 0 },
+        style: {
+          background: "#EFF6FF",
+          border: "2px solid #3b82f6",
+          borderRadius: "10px",
+          padding: "10px",
+          fontWeight: "bold",
+          textAlign: "center",
+        },
+      };
+  
+const chatNodes = chats.map((chat, i) => ({
+  id: `chat-${chat.id}`,
+  data: { label: chat.title },
+  position: { x: i * 250, y: 200 },
+  style: {
+    background: chat.id % 2 === 0 ? "#ADD8E6" : "#FFDAB9", // alternate colors
+    border: "2px solid #000",
+    borderRadius: "10px",
+    padding: "10px",
+    textAlign: "center",
+    cursor: "pointer",
+  },
+}));
+
+      
+  
+      edgesList = chats.map((chat) => ({
         id: `e-root-${chat.id}`,
         source: "root",
         target: `chat-${chat.id}`,
         animated: true,
         style: { stroke: "#3b82f6", strokeWidth: 2 },
-      });
-
-      if (selectedChat?.id === chat.id) {
-        chat.summary.forEach((summaryItem, j) => {
-          const summaryNode = {
-            id: `chat-${chat.id}-summary-${j}`,
-            data: { label: summaryItem },
-            position: { x: i * 250 + j * 200 - (chat.summary.length - 1) * 100, y: 400 },
-            style: {
-              background: "#fef9c3",
-              border: "2px solid #facc15",
-              borderRadius: "8px",
-              padding: "8px",
-              fontSize: "12px",
-              textAlign: "center",
-            },
-          };
-          summaryNodes.push(summaryNode);
-        
-          edgesList.push({
-            id: `e-chat-${chat.id}-${j}`,
-            source: `chat-${chat.id}`,
-            target: `chat-${chat.id}-summary-${j}`,
-            animated: false,
-            style: { stroke: "#facc15", strokeWidth: 2 },
-          });
-        });        
-      }
-    });
-
-    setNodes([rootNode, ...chatNodes, ...summaryNodes]);
+      }));
+  
+      nodesList = [rootNode, ...chatNodes];
+    }
+  
+    setNodes(nodesList);
     setEdges(edgesList);
   }, [selectedChat, user]);
+  
 
   useEffect(() => {
     if (!selectedChat) return;

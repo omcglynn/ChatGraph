@@ -12,10 +12,26 @@ export default function Homepage({ user, onLogout }) {
       title: "Easy and quick Italian cuisine recipes...",
       date: "9/22/2025",
       summary: [
-        "Try our 15-min pasta recipes",
-        "Learn to make tiramisu like a pro",
-        "Discover authentic Italian sauces",
-      ],
+        {
+          text: "Pasta dishes",
+          children: [
+            {
+              id: "1-0",
+              title: "Spaghetti",
+              summary: [
+                { text: "Ingredients", children: [] },
+                { text: "Cooking steps", children: [] },
+              ],
+              children: [],
+            },
+          ],
+        },
+        {
+          text: "Tiramisu dessert",
+          children: [],
+        },
+      ]
+      
     },
     {
       id: 2,
@@ -174,7 +190,7 @@ export default function Homepage({ user, onLogout }) {
           }}
         >
           <ReactFlowProvider>
-            <Tree user={user} selectedChat={selectedChat} />
+            <Tree user={user} selectedChat={selectedChat}  setSelectedChat={setSelectedChat} />
           </ReactFlowProvider>
         </div>
       </main>

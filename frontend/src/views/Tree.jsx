@@ -83,14 +83,15 @@ export default function Tree({ user, chats, selectedChat, setSelectedChat }) {
             y: y + 150,
           },
           style: {
-            background: hasChildren ? "#fde68a" : "#fef9c3",
-            border: "2px solid #facc15",
+            background: "#93c5fd", // blue
+            border: "2px solid #3b82f6", // darker blue border
             borderRadius: "8px",
             padding: "8px",
             fontSize: "12px",
+            fontWeight: "bold",
             textAlign: "center",
             cursor: hasChildren ? "pointer" : "default",
-          },
+          },          
           children: hasChildren ? item.children : [],
         });
 

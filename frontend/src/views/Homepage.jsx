@@ -5,6 +5,7 @@ import { ReactFlowProvider } from "@xyflow/react";
 
 export default function Homepage({ user, onLogout }) {
   const [selectedChat, setSelectedChat] = useState(null);
+  const [searchTerm, setSearchTerm] = useState("");
 
   const chats = [
     {
@@ -31,7 +32,6 @@ export default function Homepage({ user, onLogout }) {
           children: [],
         },
       ]
-      
     },
     {
       id: 2,
@@ -67,89 +67,107 @@ export default function Homepage({ user, onLogout }) {
     },
   ];
 
+  // Filter chats based on search term (title + summary)
+  const filteredChats = chats.filter((chat) => {
+    const lowerSearch = searchTerm.toLowerCase();
+    const inTitle = chat.title.toLowerCase().includes(lowerSearch);
+
+    const inSummary = chat.summary?.some((s) => {
+      if (typeof s === "string") {
+        return s.toLowerCase().includes(lowerSearch);
+      } else if (s.text) {
+        return s.text.toLowerCase().includes(lowerSearch);
+      }
+      return false;
+    });
+
+    return inTitle || inSummary;
+  });
+
   return (
     <div style={{ display: "flex", height: "100vh", background: "#f9fafb" }}>
       {/* Sidebar */}
-<aside
-  style={{
-    width: "280px",
-    background: "#e0e7ff",
-    padding: "20px",
-    borderRight: "1px solid #c7d2fe",
-    display: "flex",
-    flexDirection: "column",
-    justifyContent: "space-between", // pushes button to bottom
-    height: "100vh",
-  }}
->
-  {/* Top section: search + chats */}
-  <div style={{ overflowY: "auto", flexGrow: 1 }}>
-    <div style={{ marginBottom: "10px" }}>
-      <input
-        type="text"
-        placeholder="Search chats..."
+      <aside
         style={{
-          width: "100%",
-          padding: "8px",
-          borderRadius: "8px",
-          border: "1px solid #cbd5e1",
-        }}
-      />
-    </div>
-
-    {chats.map((chat) => (
-      <div
-        key={chat.id}
-        onClick={() => setSelectedChat(chat)}
-        style={{
-          padding: "10px",
-          marginBottom: "8px",
-          borderRadius: "10px",
-          background: selectedChat?.id === chat.id ? "#3b82f6" : "#ffffff",
-          color: selectedChat?.id === chat.id ? "#fff" : "#111827",
-          fontWeight: selectedChat?.id === chat.id ? "600" : "500",
-          cursor: "pointer",
-          transition: "all 0.2s ease-in-out",
-          boxShadow:
-            selectedChat?.id === chat.id
-              ? "0 0 6px rgba(59,130,246,0.5)"
-              : "0 0 2px rgba(0,0,0,0.1)",
+          width: "280px",
+          background: "#e0e7ff",
+          padding: "20px",
+          borderRight: "1px solid #c7d2fe",
+          display: "flex",
+          flexDirection: "column",
+          justifyContent: "space-between",
+          height: "100vh",
         }}
       >
-        {chat.title}
-        <div
-          style={{
-            fontSize: "0.8rem",
-            color: selectedChat?.id === chat.id ? "#dbeafe" : "#6b7280",
-          }}
-        >
-          {chat.date}
+        {/* Top section: search + chats */}
+        <div style={{ overflowY: "auto", flexGrow: 1 }}>
+          <div style={{ marginBottom: "10px" }}>
+            <input
+              type="text"
+              placeholder="Search chats..."
+              value={searchTerm}
+              onChange={(e) => setSearchTerm(e.target.value)}
+              style={{
+                width: "100%",
+                padding: "8px",
+                borderRadius: "8px",
+                border: "1px solid #cbd5e1",
+              }}
+            />
+          </div>
+
+          {filteredChats.map((chat) => (
+            <div
+              key={chat.id}
+              onClick={() => setSelectedChat(chat)}
+              style={{
+                padding: "10px",
+                marginBottom: "8px",
+                borderRadius: "10px",
+                background: selectedChat?.id === chat.id ? "#3b82f6" : "#ffffff",
+                color: selectedChat?.id === chat.id ? "#fff" : "#111827",
+                fontWeight: selectedChat?.id === chat.id ? "600" : "500",
+                cursor: "pointer",
+                transition: "all 0.2s ease-in-out",
+                boxShadow:
+                  selectedChat?.id === chat.id
+                    ? "0 0 6px rgba(59,130,246,0.5)"
+                    : "0 0 2px rgba(0,0,0,0.1)",
+              }}
+            >
+              {chat.title}
+              <div
+                style={{
+                  fontSize: "0.8rem",
+                  color: selectedChat?.id === chat.id ? "#dbeafe" : "#6b7280",
+                }}
+              >
+                {chat.date}
+              </div>
+            </div>
+          ))}
         </div>
-      </div>
-    ))}
-  </div>
 
-  {/* Bottom section: Start Chat button */}
-  <button
-    onClick={() => alert("Starting new chat...")}
-    style={{
-      background: "#3b82f6",
-      color: "white",
-      border: "none",
-      borderRadius: "8px",
-      padding: "12px",
-      fontWeight: "600",
-      cursor: "pointer",
-      transition: "background 0.2s",
-      marginTop: "10px",
-    }}
-    onMouseOver={(e) => (e.currentTarget.style.background = "#2563eb")}
-    onMouseOut={(e) => (e.currentTarget.style.background = "#3b82f6")}
-  >
-    💬 Start Chat
-  </button>
-</aside>
-
+        {/* Bottom section: Start Chat button */}
+        <button
+          onClick={() => alert("Starting new chat...")}
+          style={{
+            background: "#3b82f6",
+            color: "white",
+            border: "none",
+            borderRadius: "8px",
+            padding: "12px",
+            fontWeight: "600",
+            cursor: "pointer",
+            transition: "background 0.2s",
+            marginTop: "10px",
+          }}
+          onMouseOver={(e) => (e.currentTarget.style.background = "#2563eb")}
+          onMouseOut={(e) => (e.currentTarget.style.background = "#3b82f6")}
+        >
+          💬 Start Chat
+        </button>
+      </aside>
 
       {/* Main Content */}
       <main style={{ flexGrow: 1, padding: "20px" }}>
@@ -190,7 +208,12 @@ export default function Homepage({ user, onLogout }) {
           }}
         >
           <ReactFlowProvider>
-            <Tree user={user} selectedChat={selectedChat}  setSelectedChat={setSelectedChat} />
+            <Tree 
+              user={user} 
+              chats={filteredChats} 
+              selectedChat={selectedChat}  
+              setSelectedChat={setSelectedChat} 
+            />
           </ReactFlowProvider>
         </div>
       </main>

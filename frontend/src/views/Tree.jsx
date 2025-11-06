@@ -25,7 +25,6 @@ export default function Tree({ user, chats, selectedChat, setSelectedChat }) {
 
     if (node.type === "summary") {
       if (node.children && node.children.length > 0) {
-        // Promote summary node's children as new root
         setSelectedChat({
           id: node.id,
           title: node.data.label,

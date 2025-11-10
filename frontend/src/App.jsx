@@ -2,22 +2,15 @@ import { useState, useEffect } from 'react'
 import { createClient } from '@supabase/supabase-js'
 import { Auth } from '@supabase/auth-ui-react'
 import { ThemeSupa } from '@supabase/auth-ui-shared'
-<<<<<<< Updated upstream
 import logo from './ChatGraphImage1.png'
 import './App.css'
-=======
 import './styles/index.css'
 import Homepage from './views/Homepage'
 import Entry from './views/Entry'
 import supabase from './supabaseClient'
 import "@xyflow/react/dist/style.css";
 
->>>>>>> Stashed changes
 
-const supabase = createClient(
-  'https://rpwqxdsidtbqtiitlnhr.supabase.co',     
-  'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InJwd3F4ZHNpZHRicXRpaXRsbmhyIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NTg3NDY3MjIsImV4cCI6MjA3NDMyMjcyMn0.5TWbLmF3iLGFjTY3Ms_CeRUzx8ncVU7sBYe4sku7qFQ'                      
-)
 
 export default function App() {
   const [showLogin, setShowLogin] = useState(false)

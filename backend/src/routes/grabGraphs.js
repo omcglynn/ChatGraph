@@ -1,50 +1,57 @@
 import express from 'express';
-import supabase, {createUserClient} from "../supabaseClient.js";
+import { supabase, createUserClient } from '../supabaseClient.js';
 
 const router = express.Router();
 
-router.get('/api/graphs', async (req, res) => {
-    try {
-        const auth = req.headers.authorization || '';
-        if(!auth.startsWith('Bearer ')) {
-            return res.status(401).json({ error: 'Unauthorized' });
-        }
-        const token = auth.split(' ')[1];
-
-        const { data: userData, error: getUserError } = await supabase.auth.getUser(token);
-        if (getUserError || !userData?.user) {
-            return res.status(401).json({ error: 'Invalid token' });
-        }
-        const userId = userData.user.id;
-
-        const userClient = createUserClient(token);
-        
-        const { data, error } = await userClient
-            .from('graphs')
-            .select('id, title, created_at')
-            .eq('user_id', userId);
-        
-        userClient.auth.signOut; // cleanup
-        if (error) {
-            console.error('Error fetching graphs in backend:', error);
-            return res.status(500).json({ error: 'Database error', details: error });
-        }
-        console.log(res.json(data))
-        return res.json(data);
-    } catch (err) {
-        console.error('Unexpected error in /api/graphs:', err);
-        return res.status(500).json({ error: err.message || String(err) });
+/* ==========================
+   CREATE NEW GRAPH  ✅ POST /api/graphs
+========================== */
+router.post('/', async (req, res) => {
+  try {
+    const authHeader = req.headers.authorization;
+    if (!authHeader?.startsWith('Bearer ')) {
+      return res.status(401).json({ error: 'Unauthorized' });
     }
+
+    const token = authHeader.split(' ')[1];
+
+    // validate token
+    const { data: userData, error: userError } = await supabase.auth.getUser(token);
+    if (userError || !userData?.user) {
+      return res.status(401).json({ error: 'Invalid token' });
+    }
+
+    const userId = userData.user.id;
+    const { title } = req.body;
+
+    if (!title) {
+      return res.status(400).json({ error: 'Missing title' });
+    }
+
+    const userClient = createUserClient(token);
+
+    const { data, error } = await userClient
+      .from('graphs')
+      .insert([
+        {
+          title,
+          user_id: userId
+        }
+      ])
+      .select('*'); // return row
+
+    if (error) {
+      console.error('Graph insert error:', error);
+      return res.status(500).json({ error: error.message });
+    }
+
+    return res.json({
+      success: true,
+      graph: data[0]
+    });
+  } catch (err) {
+    return res.status(500).json({ error: err.message });
+  }
 });
 
 export default router;
-
-export async function getGraphs(session){
-    const { data, error } = await supabase
-        .from('graphs')
-        .select('*')
-        .eq('user_id', session.user.id);
-
-    if (error) throw error;
-    return data;
-}

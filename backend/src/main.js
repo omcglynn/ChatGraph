@@ -1,38 +1,26 @@
-import express from 'express'
-import cors from 'cors'
+import express from "express";
+import cors from "cors";
 
-// Supabase client
-import supabase from './supabaseClient.js'
+import authRouter from "./routes/auth.js";
+import mainRouter from "./routes/router.js";
+import branchRouter from './routes/createBranch.js';
 
-// Route modules
-import grabGraphsRouter from './routes/grabGraphs.js'
-import grabChatsRouter from './routes/grabChats.js'
-import grabMsgRouter from './routes/grabMsg.js'
 
-// Initialize express app
-const app = express()
-const port = process.env.PORT || 3000
+const app = express();
+const port = 3000;
+app.set('json spaces', 2);
 
-// Middleware
-app.use(express.json())
+app.use(express.json());
 app.use(
   cors({
-    origin: 'http://localhost:5177', 
+    origin: "http://localhost:5177",
     credentials: true,
   })
-)
+);
 
-// Use routes
-app.use(grabGraphsRouter)
-app.use(grabChatsRouter)
-app.use(grabMsgRouter)
+app.use("/auth", authRouter); 
+app.use("/api", mainRouter);  
 
-// Optional default route
-app.get('/', (req, res) => {
-  res.send('✅ ChatGraph Backend is running successfully!')
-})
-
-// Start server
 app.listen(port, () => {
-  console.log(`✅ Example app listening on port ${port} (http://localhost:${port}/)`)
-})
+  console.log("✅ Server running on http://localhost:" + port);
+});

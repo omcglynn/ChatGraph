@@ -1,0 +1,23 @@
+/* Basic resets and page layout */
+html, body, #root {
+  height: 100%;
+  margin: 0;
+  padding: 0;
+  background: var(--cg-bg);
+  color: var(--cg-text);
+  font-family: system-ui, Avenir, Helvetica, Arial, sans-serif;
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+  box-sizing: border-box;
+}
+
+*,
+*::before,
+*::after { box-sizing: inherit; }
+
+/* Buttons default */
+button { font-family: inherit; }
+
+/* Small helpers */
+.container { display: flex; height: 100%; width: 100%; overflow: hidden; }
+.hidden { display: none !important; }

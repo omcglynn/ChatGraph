@@ -2,8 +2,17 @@ import { useState, useEffect } from 'react'
 import { createClient } from '@supabase/supabase-js'
 import { Auth } from '@supabase/auth-ui-react'
 import { ThemeSupa } from '@supabase/auth-ui-shared'
+<<<<<<< Updated upstream
 import logo from './ChatGraphImage1.png'
 import './App.css'
+=======
+import './styles/index.css'
+import Homepage from './views/Homepage'
+import Entry from './views/Entry'
+import supabase from './supabaseClient'
+import "@xyflow/react/dist/style.css";
+
+>>>>>>> Stashed changes
 
 const supabase = createClient(
   'https://rpwqxdsidtbqtiitlnhr.supabase.co',     

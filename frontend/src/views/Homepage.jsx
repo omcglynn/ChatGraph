@@ -456,62 +456,13 @@ export default function Homepage({ supabase, user, onLogout }) {
 
         <div className="bottom-area">
           <button
-            onClick={async () => {
-              // Create a new graph on the server and select it
-              try {
-                // optimistic UI guard
-                if (!supabase) {
-                  // fallback: just show NewChat behavior
-                  setShowNewChat(true);
-                  setSelectedChat(null);
-                  setShowChat(false);
-                  setSelectedGraph(null);
-                  return;
-                }
-
-                const res = await (await import('../api')).fetchWithAuth(supabase, '/api/graphs', {
-                  method: 'POST',
-                  headers: {
-                    'Content-Type': 'application/json',
-                  },
-                  body: JSON.stringify({ title: 'New Graph' }),
-                });
-
-                if (!res.ok) {
-                  console.error('Failed to create graph', res.status);
-                  // fallback to opening NewChat so user can still start working
-                  setShowNewChat(true);
-                  setSelectedChat(null);
-                  setShowChat(false);
-                  setSelectedGraph(null);
-                  return;
-                }
-
-                const created = await res.json();
-                // created might be the object directly or wrapped; ensure shape
-                const graph = created?.id ? created : created?.graph || created;
-
-                // add to list and select it
-                setGraphs((prev) => [graph, ...(Array.isArray(prev) ? prev : [])]);
-                setSelectedGraph(graph);
-                setShowNewChat(false);
-                setShowChat(false);
-
-                // load chats for the newly created graph (likely empty)
-                try {
-                  await loadChatsForGraph(graph.id);
-                } catch {
-                  // ignore load errors for new graph
-                }
-                // Refresh graphs list to ensure proper sorting
-                loadGraphs(true);
-              } catch (err) {
-                console.error('Error creating graph from sidebar:', err);
-                setShowNewChat(true);
-                setSelectedChat(null);
-                setShowChat(false);
-                setSelectedGraph(null);
-              }
+            onClick={() => {
+              // Navigate to /newchat route
+              window.history.pushState(null, '', '/newchat');
+              setShowNewChat(true);
+              setSelectedChat(null);
+              setShowChat(false);
+              setSelectedGraph(null);
             }}
             className="start-chat"
             style={{ display: "flex", alignItems: "center", gap: "8px" }}
@@ -575,6 +526,8 @@ export default function Homepage({ supabase, user, onLogout }) {
               loadChatsForGraph(graph.id, true);
               // Refresh graphs list to ensure proper sorting
               loadGraphs(true);
+              // Navigate away from /newchat to the new graph
+              updateUrl(graph.id, null);
             }} />
             ) : selectedChat ? (
             showChat ? (

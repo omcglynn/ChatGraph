@@ -513,8 +513,10 @@ export default function Tree({
   const [rootEditValue, setRootEditValue] = useState("");
   const [showRootDeleteConfirm, setShowRootDeleteConfirm] = useState(false);
   
-  // Use ref to track hover timeout to prevent rapid state changes
+  // Use refs to track hover timeouts to prevent rapid state changes
   const hoverTimeoutRef = useRef(null);
+  const rootHoverTimeoutRef = useRef(null);
+  const rootHoverActiveRef = useRef(false);
 
   const nodeTypes = useMemo(
     () => ({
@@ -1131,11 +1133,14 @@ export default function Tree({
     setHasFittedView(false);
   }, [selectedGraph?.id]);
 
-  // Cleanup hover timeout on unmount
+  // Cleanup hover timeouts on unmount
   useEffect(() => {
     return () => {
       if (hoverTimeoutRef.current) {
         clearTimeout(hoverTimeoutRef.current);
+      }
+      if (rootHoverTimeoutRef.current) {
+        clearTimeout(rootHoverTimeoutRef.current);
       }
     };
   }, []);
@@ -1207,6 +1212,14 @@ export default function Tree({
             }
             setHoveredChatId(node.data.chatId);
           } else if (node.type === "root") {
+            // Clear any pending timeout for root node
+            if (rootHoverTimeoutRef.current) {
+              clearTimeout(rootHoverTimeoutRef.current);
+              rootHoverTimeoutRef.current = null;
+            }
+            // Mark as actively hovered
+            rootHoverActiveRef.current = true;
+            // Set hover state immediately to prevent glitches
             setIsRootHovered(true);
           }
         }}
@@ -1222,7 +1235,20 @@ export default function Tree({
               hoverTimeoutRef.current = null;
             }, 100);
           } else if (node.type === "root") {
-            setIsRootHovered(false);
+            // Mark as not actively hovered
+            rootHoverActiveRef.current = false;
+            // Add a delay before clearing root hover to prevent glitches during node rebuilds
+            // Use a longer timeout than chat nodes since root node rebuilds can take longer
+            if (rootHoverTimeoutRef.current) {
+              clearTimeout(rootHoverTimeoutRef.current);
+            }
+            rootHoverTimeoutRef.current = setTimeout(() => {
+              // Only clear if mouse hasn't re-entered
+              if (!rootHoverActiveRef.current) {
+                setIsRootHovered(false);
+              }
+              rootHoverTimeoutRef.current = null;
+            }, 150);
           }
         }}
         nodesDraggable={true}

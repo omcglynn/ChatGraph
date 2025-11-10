@@ -34,11 +34,12 @@ export default function Chat({ selectedChat, onClose /* optional */, supabase })
     const loadMessages = async () => {
       if (!selectedChat?.id || !supabase) return;
       try {
-        const { data: { session } } = await supabase.auth.getSession();
-        const token = session?.access_token;
-        const res = await fetch(`http://localhost:3000/api/messages?chat_id=${selectedChat.id}`, {
-          headers: { Authorization: token ? `Bearer ${token}` : "" },
-        });
+        const api = await import('../api');
+        // prefer REST param: GET /api/messages/:chatId
+        let res = await api.fetchWithAuth(supabase, `/api/messages/${selectedChat.id}`);
+        if (!res.ok) {
+          res = await api.fetchWithAuth(supabase, `/api/messages?chatId=${selectedChat.id}`);
+        }
         if (!res.ok) {
           console.warn('Failed to load messages', res.status);
           return;
@@ -88,12 +89,21 @@ export default function Chat({ selectedChat, onClose /* optional */, supabase })
             const res = await (await import('../api')).fetchWithAuth(supabase, '/api/messages', {
               method: 'POST',
               headers: { 'Content-Type': 'application/json' },
-              body: JSON.stringify({ chat_id: selectedChat.id, author: 'user', content: text }),
+              body: JSON.stringify({ chatId: selectedChat.id, content: text }),
             });
             if (res.ok) {
-              const saved = await res.json();
-              // replace the temporary id with server id
-              setMessages((m) => m.map((msg) => (msg.id === userMsg.id ? { ...msg, id: saved.id } : msg)));
+              const payload = await res.json();
+              // backend returns { success, userMessage, aiMessage }
+              const saved = payload?.userMessage || payload?.user_message || null;
+              const aiText = payload?.aiMessage || payload?.ai_message || payload?.aiMessage;
+              if (saved?.id) {
+                setMessages((m) => m.map((msg) => (msg.id === userMsg.id ? { ...msg, id: saved.id } : msg)));
+              }
+
+              // Replace thinking message with AI reply if provided, otherwise fall back to echo
+              const replyText = aiText || `Echo: ${text}`;
+              setMessages((m) => m.map((msg) => (msg.id === thinkingId ? { ...msg, text: replyText } : msg)));
+              return;
             } else {
               console.warn('Failed to persist message', res.status);
             }
@@ -102,13 +112,10 @@ export default function Chat({ selectedChat, onClose /* optional */, supabase })
           console.warn('Error persisting message:', persistErr);
         }
 
-      // For now use a local echo bot response (replace later with AI call)
-      await new Promise((r) => setTimeout(r, 900));
-      const botText = `Echo: ${text}`;
-
-      setMessages((m) =>
-        m.map((msg) => (msg.id === thinkingId ? { ...msg, text: botText } : msg))
-      );
+        // Fallback local echo if backend not available
+        await new Promise((r) => setTimeout(r, 900));
+        const botText = `Echo: ${text}`;
+        setMessages((m) => m.map((msg) => (msg.id === thinkingId ? { ...msg, text: botText } : msg)));
     } catch {
       setError("Failed to send message.");
       setMessages((m) => m.filter((msg) => msg.id !== thinkingId));

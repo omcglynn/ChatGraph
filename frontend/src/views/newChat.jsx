@@ -5,7 +5,7 @@ import React, { useState } from "react";
  * Props:
  * - onCreate(chatObject) optional: called when a new chat is created
  */
-export default function NewChat({ onCreate, supabase }) {
+export default function NewChat({ onCreate, supabase, graphId = null }) {
   const [title, setTitle] = useState("");
   const [prompt, setPrompt] = useState("");
   const [creating, setCreating] = useState(false);
@@ -36,14 +36,28 @@ export default function NewChat({ onCreate, supabase }) {
         const res = await (await import('../api')).fetchWithAuth(supabase, '/api/chats', {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ title: newChat.title, initial_message: trimmed }),
+          body: JSON.stringify({ graphId: graphId || null, title: newChat.title }),
         });
         if (!res.ok) {
           console.error('Failed to create chat on server', res.status);
           setMessage('Failed to create chat on server.');
         } else {
           const payload = await res.json();
-          const created = payload?.chat || payload;
+          // backend may return { success: true, chat } or { success:true, newChat }
+          const created = payload?.chat || payload?.newChat || payload;
+          // if user provided an initial prompt, persist it as a message
+          if (trimmed) {
+            try {
+              await (await import('../api')).fetchWithAuth(supabase, '/api/messages', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ chatId: created?.id || newChat.id, content: trimmed }),
+              });
+            } catch (msgErr) {
+              console.warn('Failed to persist initial message:', msgErr);
+            }
+          }
+
           const built = {
             id: created?.id || newChat.id,
             title: created?.title || newChat.title,

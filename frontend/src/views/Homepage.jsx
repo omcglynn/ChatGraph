@@ -26,11 +26,12 @@ export default function Homepage({ supabase, user, onLogout }) {
     if (!user || !supabase || !graphId) return;
     setLoadingChats(true);
     try {
-      const { data: { session } } = await supabase.auth.getSession();
-      const token = session?.access_token;
-      const res = await fetch(`http://localhost:3000/api/chats?graph_id=${graphId}`, {
-        headers: { Authorization: token ? `Bearer ${token}` : "" },
-      });
+      const api = await import('../api');
+      // Prefer REST param style, but fall back to legacy query form if necessary
+      let res = await api.fetchWithAuth(supabase, `/api/chats/${graphId}`);
+      if (!res.ok) {
+        res = await api.fetchWithAuth(supabase, `/api/chats?graphId=${graphId}`);
+      }
       if (!res.ok) throw new Error(`Failed to load chats: ${res.status}`);
       const data = await res.json();
       setChats(Array.isArray(data) ? data : []);
@@ -58,11 +59,8 @@ export default function Homepage({ supabase, user, onLogout }) {
       setLoadingGraphs(true);
       setGraphsError(null);
       try {
-        const { data: { session } } = await supabase.auth.getSession();
-        const token = session?.access_token;
-        const res = await fetch("http://localhost:3000/api/graphs", {
-          headers: { Authorization: token ? `Bearer ${token}` : "" },
-        });
+        const api = await import('../api');
+        const res = await api.fetchWithAuth(supabase, '/api/graphs');
         if (!res.ok) throw new Error(`Failed to load graphs: ${res.status}`);
         const data = await res.json();
         setGraphs(Array.isArray(data) ? data : []);
@@ -285,7 +283,7 @@ export default function Homepage({ supabase, user, onLogout }) {
           }}
         >
           {showNewChat && !selectedChat ? (
-              <NewChat supabase={supabase} onCreate={(c) => {
+              <NewChat supabase={supabase} graphId={selectedGraph?.id} onCreate={(c) => {
               // add newly created chat to sidebar list
               setChats((prev) => [c, ...prev]);
               setShowNewChat(true);

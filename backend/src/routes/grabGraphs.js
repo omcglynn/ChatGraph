@@ -45,9 +45,34 @@ router.post('/', async (req, res) => {
       return res.status(500).json({ error: error.message });
     }
 
+    const graph = data[0];
+
+    // Automatically create a root chat for this graph
+    const { data: rootChatData, error: rootChatError } = await userClient
+      .from('chats')
+      .insert([
+        {
+          graph_id: graph.id,
+          title,
+          user_id: userId,
+          parent_id: null,
+          parent_summary: null,
+        },
+      ])
+      .select('*')
+      .maybeSingle();
+
+    if (rootChatError) {
+      console.error('Root chat insert error:', rootChatError);
+      // Attempt to clean up the graph if root chat creation fails
+      await userClient.from('graphs').delete().eq('id', graph.id).eq('user_id', userId);
+      return res.status(500).json({ error: rootChatError.message });
+    }
+
     return res.json({
       success: true,
-      graph: data[0]
+      graph,
+      rootChat: rootChatData,
     });
   } catch (err) {
     return res.status(500).json({ error: err.message });
@@ -140,9 +165,50 @@ router.put('/:id', async (req, res) => {
       return res.status(500).json({ error: error.message });
     }
 
+    // Ensure root chat stays in sync with the graph title
+    let rootChat = null;
+    const { data: updatedRootChat, error: rootChatError } = await userClient
+      .from('chats')
+      .update({ title })
+      .eq('graph_id', graphId)
+      .eq('parent_id', null)
+      .eq('user_id', userId)
+      .select('*')
+      .maybeSingle();
+
+    if (rootChatError && rootChatError.code !== 'PGRST116') {
+      console.error('Root chat update error:', rootChatError);
+    }
+
+    if (updatedRootChat) {
+      rootChat = updatedRootChat;
+    } else if (rootChatError && rootChatError.code === 'PGRST116') {
+      // No root chat exists yet; create one
+      const { data: createdRootChat, error: createRootError } = await userClient
+        .from('chats')
+        .insert([
+          {
+            graph_id: graphId,
+            title,
+            user_id: userId,
+            parent_id: null,
+            parent_summary: null,
+          },
+        ])
+        .select('*')
+        .maybeSingle();
+
+      if (createRootError) {
+        console.error('Failed to create root chat during graph update:', createRootError);
+      } else {
+        rootChat = createdRootChat;
+      }
+    }
+
     return res.json({
       success: true,
-      graph: data
+      graph: data,
+      rootChat
     });
   } catch (err) {
     return res.status(500).json({ error: err.message });

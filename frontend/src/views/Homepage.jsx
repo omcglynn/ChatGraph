@@ -6,9 +6,9 @@ import ThemeToggle from "../components/ThemeToggle";
 import "../styles/index.css";
 import { ReactFlowProvider } from "@xyflow/react";
 import { formatDate } from "../utils/dateFormatter";
-import pencilIcon from "../assets/pencil-1.svg";
-import trashIcon from "../assets/trash-3.svg";
-import plusIcon from "../assets/plus.svg";
+import pencilIcon from "../assets/icons/pencil-1.svg";
+import trashIcon from "../assets/icons/trash-3.svg";
+import plusIcon from "../assets/icons/plus.svg";
 
 export default function Homepage({ supabase, user, onLogout }) {
   const [selectedGraph, setSelectedGraph] = useState(null);
@@ -67,11 +67,36 @@ export default function Homepage({ supabase, user, onLogout }) {
       }
       
       const data = await res.json();
-      setChats(Array.isArray(data) ? data : []);
+      let chatsData = Array.isArray(data) ? data : [];
+
+      // Ensure there's always a root chat (parent_id === null)
+      if (!chatsData.some((chat) => chat?.parent_id == null)) {
+        try {
+          const graphMeta = graphs.find((g) => g.id === graphId) || selectedGraph;
+          const rootTitle = graphMeta?.title || 'Root Chat';
+          const createRootRes = await api.fetchWithAuth(supabase, '/api/chats', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ graphId, title: rootTitle, parentId: null }),
+          });
+
+          if (createRootRes.ok) {
+            const createdPayload = await createRootRes.json();
+            const createdRoot = createdPayload?.chat || createdPayload;
+            if (createdRoot) {
+              chatsData = [createdRoot, ...chatsData];
+            }
+          }
+        } catch (rootErr) {
+          console.error('Failed to create root chat for graph:', rootErr);
+        }
+      }
+
+      setChats(chatsData);
       
       // If a desired chat id was parsed from the URL, only select it if it belongs to this graph/user
       if (desiredChatId) {
-        const foundChat = (Array.isArray(data) ? data : []).find((ch) => ch.id === desiredChatId);
+        const foundChat = chatsData.find((ch) => ch.id === desiredChatId);
         if (foundChat) {
           setSelectedChat(foundChat);
           setShowChat(true);
@@ -86,7 +111,7 @@ export default function Homepage({ supabase, user, onLogout }) {
     finally {
       setLoadingChats(false);
     }
-  }, [user, supabase, desiredChatId, selectedGraph?.id]);
+  }, [user, supabase, desiredChatId, selectedGraph, graphs]);
 
   // Track the last user ID to detect user changes
   const lastUserIdRef = useRef(null);
@@ -319,6 +344,16 @@ export default function Homepage({ supabase, user, onLogout }) {
                                   if (selectedGraph?.id === g.id) {
                                     setSelectedGraph(updated.graph);
                                   }
+                                  if (updated.rootChat) {
+                                    setChats((prev) =>
+                                      (Array.isArray(prev) ? prev : []).map((chat) =>
+                                        chat.id === updated.rootChat.id ? updated.rootChat : chat
+                                      )
+                                    );
+                                    if (selectedChat?.id === updated.rootChat.id) {
+                                      setSelectedChat(updated.rootChat);
+                                    }
+                                  }
                                   // Refresh graphs list to update date
                                   loadGraphs(true);
                                 }
@@ -518,11 +553,16 @@ export default function Homepage({ supabase, user, onLogout }) {
           }}
         >
           {showNewChat && !selectedChat ? (
-              <NewChat supabase={supabase} onCreate={(graph) => {
+              <NewChat supabase={supabase} onCreate={(graph, rootChat) => {
               // add newly created graph to sidebar list and select it
               setGraphs((prev) => [graph, ...(Array.isArray(prev) ? prev : [])]);
               setSelectedGraph(graph);
               setShowNewChat(false);
+              if (rootChat) {
+                setChats([rootChat]);
+                setSelectedChat(rootChat);
+                setShowChat(true);
+              }
               loadChatsForGraph(graph.id, true);
               // Refresh graphs list to ensure proper sorting
               loadGraphs(true);
@@ -539,6 +579,7 @@ export default function Homepage({ supabase, user, onLogout }) {
                 onChatsUpdate={setChats}
                 setSelectedChat={setSelectedChat}
                 onGraphsRefresh={loadGraphs}
+                chats={chats}
               />
             ) : (
               // Otherwise show the tree for the selected chat
@@ -571,6 +612,7 @@ export default function Homepage({ supabase, user, onLogout }) {
                 onChatsUpdate={setChats}
                 onGraphsUpdate={setGraphs}
                 setSelectedGraph={setSelectedGraph}
+                onGraphsRefresh={loadGraphs}
               />
             </ReactFlowProvider>
           )}

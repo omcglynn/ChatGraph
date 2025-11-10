@@ -1,7 +1,18 @@
 import React, { useState, useEffect, useRef } from "react";
-import pencilIcon from "../assets/pencil-1.svg";
+import ReactMarkdown from "react-markdown";
+import remarkGfm from "remark-gfm";
+import pencilIcon from "../assets/icons/pencil-1.svg";
+import plusIcon from "../assets/icons/plus.svg";
 
-export default function Chat({ selectedChat, onClose /* optional */, supabase, onChatsUpdate, setSelectedChat, onGraphsRefresh }) {
+export default function Chat({
+  selectedChat,
+  onClose /* optional */,
+  supabase,
+  onChatsUpdate,
+  setSelectedChat,
+  onGraphsRefresh,
+  chats = [],
+}) {
   // No initial messages - parent summary is handled in the backend
   const [messages, setMessages] = useState([]);
   const [input, setInput] = useState("");
@@ -57,6 +68,90 @@ export default function Chat({ selectedChat, onClose /* optional */, supabase, o
   useEffect(() => {
     bottomRef.current?.scrollIntoView({ behavior: "smooth" });
   }, [messages]);
+
+  const handleBranchChat = async () => {
+    if (!selectedChat?.id || !selectedChat?.graph_id || !supabase) {
+      return;
+    }
+
+    try {
+      const api = await import('../api');
+      const branchTitle = `Branch of ${selectedChat.title || 'Chat'}`;
+      const res = await api.fetchWithAuth(supabase, '/api/chats', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          graphId: selectedChat.graph_id,
+          title: branchTitle,
+          parentId: selectedChat.id,
+        }),
+      });
+
+      if (res.ok) {
+        const payload = await res.json();
+        const newChat = payload?.chat || payload;
+        if (newChat) {
+          if (onChatsUpdate) {
+            onChatsUpdate((prev) => {
+              const list = Array.isArray(prev) ? prev : [];
+              return [newChat, ...list];
+            });
+          }
+          if (setSelectedChat) {
+            setSelectedChat(newChat);
+          }
+          if (onGraphsRefresh) {
+            onGraphsRefresh(true);
+          }
+        }
+      }
+    } catch (err) {
+      console.error('Failed to branch chat:', err);
+    }
+  };
+
+  const handleNavigateToParent = async () => {
+    const parentId = selectedChat?.parent_id;
+    if (!parentId) return;
+
+    const parentFromList = Array.isArray(chats) ? chats.find((chat) => chat.id === parentId) : null;
+    if (parentFromList) {
+      if (setSelectedChat) {
+        setSelectedChat(parentFromList);
+      }
+      return;
+    }
+
+    if (!supabase) return;
+
+    try {
+      const api = await import('../api');
+      const res = await api.fetchWithAuth(supabase, `/api/chats/${parentId}`);
+      if (res.ok) {
+        const payload = await res.json();
+        const parentChat = Array.isArray(payload)
+          ? payload.find((chat) => chat.id === parentId)
+          : payload?.chat || payload;
+
+        if (parentChat) {
+          if (onChatsUpdate) {
+            onChatsUpdate((prev) => {
+              const list = Array.isArray(prev) ? prev : [];
+              if (list.some((c) => c.id === parentChat.id)) {
+                return list;
+              }
+              return [parentChat, ...list];
+            });
+          }
+          if (setSelectedChat) {
+            setSelectedChat(parentChat);
+          }
+        }
+      }
+    } catch (err) {
+      console.error('Failed to navigate to parent chat:', err);
+    }
+  };
 
   const sendMessage = async () => {
     const text = input.trim();
@@ -166,6 +261,29 @@ export default function Chat({ selectedChat, onClose /* optional */, supabase, o
         if (onGraphsRefresh) {
           onGraphsRefresh(true);
         }
+
+        if (!selectedChat.parent_id && selectedChat.graph_id) {
+          try {
+            const graphRes = await api.fetchWithAuth(supabase, `/api/graphs/${selectedChat.graph_id}`, {
+              method: 'PUT',
+              headers: { 'Content-Type': 'application/json' },
+              body: JSON.stringify({ title: editTitleValue.trim() }),
+            });
+
+            if (graphRes.ok) {
+              const graphPayload = await graphRes.json();
+              const rootChat = graphPayload?.rootChat;
+              if (rootChat && onChatsUpdate) {
+                onChatsUpdate((prev) => prev.map((c) => (c.id === rootChat.id ? rootChat : c)));
+              }
+              if (rootChat && setSelectedChat) {
+                setSelectedChat(rootChat);
+              }
+            }
+          } catch (err) {
+            console.error('Failed to sync graph title from chat view:', err);
+          }
+        }
       }
     } catch (err) {
       console.error('Failed to update chat title:', err);
@@ -191,6 +309,17 @@ export default function Chat({ selectedChat, onClose /* optional */, supabase, o
             title="Back to Graph"
           >
             ← Graph
+          </button>
+
+          <button
+            onClick={handleNavigateToParent}
+            className="cg-button secondary"
+            disabled={!selectedChat?.parent_id}
+            title="Go to parent chat"
+            style={{ opacity: selectedChat?.parent_id ? 1 : 0.5 }}
+            type="button"
+          >
+            ↑ Parent
           </button>
 
           {isEditingTitle ? (
@@ -258,7 +387,7 @@ export default function Chat({ selectedChat, onClose /* optional */, supabase, o
             className={`chat-message ${m.role === "user" ? "user" : "bot"}`}
           >
             <div className={`chat-bubble ${m.role === "user" ? "user" : "bot"}`}>
-              {m.text}
+              <ReactMarkdown remarkPlugins={[remarkGfm]}>{m.text || ""}</ReactMarkdown>
             </div>
           </div>
         ))}
@@ -266,6 +395,17 @@ export default function Chat({ selectedChat, onClose /* optional */, supabase, o
       </div>
 
       <div className="chat-input-area">
+        <button
+          className="cg-button secondary"
+          onClick={handleBranchChat}
+          disabled={!selectedChat || !supabase || sending}
+          style={{ display: "flex", alignItems: "center", gap: 6, whiteSpace: "nowrap" }}
+          title="Branch this chat"
+          type="button"
+        >
+          <img src={plusIcon} alt="Branch" style={{ width: 16, height: 16 }} />
+          Branch
+        </button>
         <textarea
           className="cg-textarea"
           value={input}

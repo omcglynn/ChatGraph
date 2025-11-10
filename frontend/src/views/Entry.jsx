@@ -4,7 +4,6 @@ import { ThemeSupa } from '@supabase/auth-ui-shared'
 import logo from '../assets/logo.png'
 import supabase from '../supabaseClient'
 import '../styles/index.css'
-import "@xyflow/react/dist/style.css";
 import ThemeToggle from '../components/ThemeToggle';
 
 export default function Entry({user}){

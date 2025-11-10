@@ -11,9 +11,9 @@ import {
   Position,
 } from "@xyflow/react";
 import "@xyflow/react/dist/style.css";
-import pencilIcon from "../assets/pencil-1.svg";
-import plusIcon from "../assets/plus.svg";
-import trashIcon from "../assets/trash-3.svg";
+import pencilIcon from "../assets/icons/pencil-1.svg";
+import plusIcon from "../assets/icons/plus.svg";
+import trashIcon from "../assets/icons/trash-3.svg";
 
 // Simple Chat Node Component
 const ChatNode = ({ data }) => {
@@ -30,6 +30,8 @@ const ChatNode = ({ data }) => {
     onDeleteClick,
     onDeleteConfirm,
     onDeleteCancel,
+    isRoot = false,
+    canDelete = true,
   } = data;
 
   // Use local state for the input value to prevent re-renders from triggering saves
@@ -69,8 +71,10 @@ const ChatNode = ({ data }) => {
         }
       }}
     >
-      <Handle type="target" position={Position.Top} id="top" style={{ background: "transparent" }} />
-      
+      {!isRoot && (
+        <Handle type="target" position={Position.Top} id="top" style={{ background: "transparent" }} />
+      )}
+
       {isEditing ? (
         <input
           type="text"
@@ -140,7 +144,7 @@ const ChatNode = ({ data }) => {
               <button
                 type="button"
                 onClick={(e) => {
-                e.stopPropagation();
+                  e.stopPropagation();
                   onEditStart();
                 }}
                 style={{
@@ -156,8 +160,8 @@ const ChatNode = ({ data }) => {
               </button>
               <button
                 type="button"
-              onClick={(e) => {
-                e.stopPropagation();
+                onClick={(e) => {
+                  e.stopPropagation();
                   onCreateChild();
                 }}
                 style={{
@@ -171,26 +175,28 @@ const ChatNode = ({ data }) => {
               >
                 <img src={plusIcon} alt="Add" style={{ width: "16px", height: "16px" }} />
               </button>
+              {canDelete && onDeleteClick && (
               <button
                 type="button"
                 onClick={(e) => {
                   e.stopPropagation();
-                  onDeleteClick();
+                    onDeleteClick();
                 }}
                 style={{
-                  background: "transparent",
-                  border: "none",
-                  cursor: "pointer",
-                  padding: "4px 6px",
-                  fontSize: "14px",
+                    background: "transparent",
+                    border: "none",
+                    cursor: "pointer",
+                    padding: "4px 6px",
+                    fontSize: "14px",
                 }}
                 title="Delete chat"
               >
-                <img src={trashIcon} alt="Delete" style={{ width: "16px", height: "16px" }} />
+                  <img src={trashIcon} alt="Delete" style={{ width: "16px", height: "16px" }} />
               </button>
+              )}
             </div>
           )}
-          {showDeleteConfirm && (
+          {canDelete && showDeleteConfirm && (
             <div
               style={{
                 marginTop: "8px",
@@ -207,234 +213,6 @@ const ChatNode = ({ data }) => {
             >
               <div style={{ fontSize: "0.85rem", marginBottom: "8px", color: "var(--cg-text)", textAlign: "left" }}>
                 Delete "{label}"? This will delete all child chats as well.
-              </div>
-              <div style={{ display: "flex", gap: "8px" }}>
-                  <button
-                    type="button"
-                    onClick={(e) => {
-                  e.stopPropagation();
-                    onDeleteConfirm();
-                }}
-                style={{
-                    background: "#ef4444",
-                    color: "white",
-                    border: "none",
-                    borderRadius: "4px",
-                    padding: "4px 12px",
-                    fontSize: "0.85rem",
-                    cursor: "pointer",
-                      flex: 1,
-                    }}
-                  >
-                    Delete
-              </button>
-              <button
-                type="button"
-                onClick={(e) => {
-                  e.stopPropagation();
-                    onDeleteCancel();
-                  }}
-                  style={{
-                    background: "var(--cg-panel)",
-                    color: "var(--cg-text)",
-                    border: "1px solid var(--cg-border)",
-                    borderRadius: "4px",
-                    padding: "4px 12px",
-                    fontSize: "0.85rem",
-                    cursor: "pointer",
-                    flex: 1,
-                  }}
-                >
-                  Cancel
-                </button>
-              </div>
-            </div>
-          )}
-        </>
-      )}
-      <Handle type="source" position={Position.Bottom} id="bottom" style={{ background: "transparent" }} />
-    </div>
-  );
-};
-
-// Root Node Component
-const RootNode = ({ data }) => {
-  const {
-    label,
-    isEditing,
-    editValue,
-    showButtons,
-    showDeleteConfirm,
-    onEditStart,
-    onEditSave,
-    onEditCancel,
-    onCreateChild,
-    onDeleteClick,
-    onDeleteConfirm,
-    onDeleteCancel,
-  } = data;
-
-  // Use local state for the input value
-  const [localEditValue, setLocalEditValue] = React.useState(editValue || "");
-  
-  // Sync local value when editing starts
-  React.useEffect(() => {
-    if (isEditing) {
-      setLocalEditValue(editValue || "");
-    }
-  }, [isEditing, editValue]);
-
-  const handleSave = () => {
-    onEditSave(localEditValue);
-  };
-
-  const handleCancel = () => {
-    setLocalEditValue(editValue || "");
-    onEditCancel();
-  };
-
-  return (
-    <div
-      style={{
-        position: "relative",
-        padding: 10,
-        fontWeight: "bold",
-        textAlign: "center",
-                }}
-                onMouseDown={(e) => {
-        if (isEditing || showButtons || showDeleteConfirm) {
-                  e.stopPropagation();
-        }
-      }}
-    >
-      <Handle type="source" position={Position.Bottom} id="bottom" style={{ background: "transparent" }} />
-      
-      {isEditing ? (
-        <input
-          type="text"
-          value={localEditValue}
-          onChange={(e) => {
-            e.stopPropagation();
-            setLocalEditValue(e.target.value);
-          }}
-          onBlur={(e) => {
-            e.stopPropagation();
-            handleSave();
-          }}
-          onKeyDown={(e) => {
-            e.stopPropagation();
-            if (e.key === "Enter") {
-              e.preventDefault();
-              e.target.blur();
-            } else if (e.key === "Escape") {
-              e.preventDefault();
-              handleCancel();
-            }
-          }}
-          onClick={(e) => e.stopPropagation()}
-          autoFocus
-                style={{
-            background: "var(--cg-input-bg)",
-            border: "2px solid var(--cg-primary)",
-            borderRadius: "4px",
-            padding: "4px 8px",
-            color: "var(--cg-text)",
-            fontSize: "inherit",
-            fontWeight: "inherit",
-            width: "100%",
-            textAlign: "center",
-            outline: "none",
-          }}
-        />
-      ) : (
-        <>
-          <div>{label}</div>
-          {showButtons && (
-            <div
-              style={{
-                display: "flex",
-                gap: "4px",
-                justifyContent: "center",
-                marginTop: "8px",
-                padding: "4px",
-                background: "var(--cg-panel)",
-                borderRadius: "6px",
-                boxShadow: "var(--cg-shadow)",
-                border: "1px solid var(--cg-border)",
-              }}
-              onMouseDown={(e) => e.stopPropagation()}
-              onClick={(e) => e.stopPropagation()}
-            >
-              <button
-                type="button"
-                onClick={(e) => {
-                  e.stopPropagation();
-                  onEditStart();
-                }}
-                style={{
-                  background: "transparent",
-                  border: "none",
-                  cursor: "pointer",
-                  padding: "4px 6px",
-                  fontSize: "14px",
-                }}
-                title="Edit graph name"
-              >
-                <img src={pencilIcon} alt="Edit" style={{ width: "16px", height: "16px" }} />
-              </button>
-              <button
-                type="button"
-                onClick={(e) => {
-                  e.stopPropagation();
-                  onCreateChild();
-                }}
-                style={{
-                  background: "transparent",
-                  border: "none",
-                  cursor: "pointer",
-                  padding: "4px 6px",
-                  fontSize: "14px",
-                }}
-                title="Create root chat"
-              >
-                <img src={plusIcon} alt="Add" style={{ width: "16px", height: "16px" }} />
-              </button>
-              <button
-                type="button"
-                onClick={(e) => {
-                  e.stopPropagation();
-                  onDeleteClick();
-                }}
-                style={{
-                  background: "transparent",
-                  border: "none",
-                  cursor: "pointer",
-                  padding: "4px 6px",
-                  fontSize: "14px",
-                }}
-                title="Delete graph"
-              >
-                <img src={trashIcon} alt="Delete" style={{ width: "16px", height: "16px" }} />
-              </button>
-            </div>
-          )}
-          {showDeleteConfirm && (
-            <div
-              style={{
-                marginTop: "8px",
-                padding: "8px",
-                background: "rgba(239, 68, 68, 0.1)",
-                borderRadius: "6px",
-                border: "1px solid rgba(239, 68, 68, 0.3)",
-                width: "100%",
-                boxSizing: "border-box",
-                boxShadow: "var(--cg-shadow)",
-              }}
-              onMouseDown={(e) => e.stopPropagation()}
-              onClick={(e) => e.stopPropagation()}
-            >
-              <div style={{ fontSize: "0.85rem", marginBottom: "8px", color: "var(--cg-text)", textAlign: "left" }}>
-                Delete "{label}"? This will delete all chats in this graph.
               </div>
               <div style={{ display: "flex", gap: "8px" }}>
                   <button
@@ -480,6 +258,7 @@ const RootNode = ({ data }) => {
           )}
         </>
       )}
+      <Handle type="source" position={Position.Bottom} id="bottom" style={{ background: "transparent" }} />
     </div>
   );
 };
@@ -506,22 +285,13 @@ export default function Tree({
   const [hoveredChatId, setHoveredChatId] = useState(null);
   const [deleteConfirmChatId, setDeleteConfirmChatId] = useState(null);
   const [hasFittedView, setHasFittedView] = useState(false);
-  
-  // Root node state management
-  const [isRootHovered, setIsRootHovered] = useState(false);
-  const [isRootEditing, setIsRootEditing] = useState(false);
-  const [rootEditValue, setRootEditValue] = useState("");
-  const [showRootDeleteConfirm, setShowRootDeleteConfirm] = useState(false);
-  
-  // Use refs to track hover timeouts to prevent rapid state changes
+
+  // Use ref to track hover timeout to prevent rapid state changes
   const hoverTimeoutRef = useRef(null);
-  const rootHoverTimeoutRef = useRef(null);
-  const rootHoverActiveRef = useRef(false);
 
   const nodeTypes = useMemo(
     () => ({
       chat: ChatNode,
-      root: RootNode,
     }),
     []
   );
@@ -579,9 +349,42 @@ export default function Tree({
         if (selectedChat?.id === editingChatId) {
           setSelectedChat(updated.chat);
         }
-        // Refresh graphs list to update date
-        if (onGraphsRefresh) {
-          onGraphsRefresh(true);
+
+        // If this is the root chat (no parent), also update the graph title
+        if (!chat.parent_id && selectedGraph) {
+          try {
+            const graphRes = await api.fetchWithAuth(supabase, `/api/graphs/${selectedGraph.id}`, {
+              method: "PUT",
+              headers: { "Content-Type": "application/json" },
+              body: JSON.stringify({ title: newValue.trim() }),
+            });
+
+            if (graphRes.ok) {
+              const graphPayload = await graphRes.json();
+              if (graphPayload?.graph && onGraphsUpdate) {
+                onGraphsUpdate((prev) =>
+                  prev.map((g) => (g.id === graphPayload.graph.id ? graphPayload.graph : g))
+                );
+              }
+              if (graphPayload?.graph && setSelectedGraph) {
+                setSelectedGraph(graphPayload.graph);
+              }
+              const rootChat = graphPayload?.rootChat;
+              if (rootChat && onChatsUpdate) {
+                onChatsUpdate((prev) =>
+                  prev.map((c) => (c.id === rootChat.id ? rootChat : c))
+                );
+              }
+              if (rootChat && selectedChat?.id === rootChat.id) {
+                setSelectedChat(rootChat);
+              }
+              if (onGraphsRefresh) {
+                onGraphsRefresh(true);
+              }
+            }
+          } catch (err) {
+            console.error("Failed to update graph title from root chat edit:", err);
+          }
         }
       }
     } catch (err) {
@@ -589,7 +392,7 @@ export default function Tree({
     }
 
     setEditingChatId(null);
-  }, [editingChatId, chats, supabase, onChatsUpdate, selectedChat, setSelectedChat, onGraphsRefresh]);
+  }, [editingChatId, chats, supabase, onChatsUpdate, selectedChat, setSelectedChat, selectedGraph, onGraphsUpdate, setSelectedGraph, onGraphsRefresh]);
 
   const handleEditCancel = useCallback(() => {
     setEditingChatId(null);
@@ -642,144 +445,19 @@ export default function Tree({
   [selectedGraph, chats, supabase, onChatsUpdate, getViewport, setViewport, onGraphsRefresh]
 );
 
-  // Root node handlers
-  const handleRootEditStart = useCallback(() => {
-    setIsRootEditing(true);
-    setRootEditValue(selectedGraph?.title || "");
-  }, [selectedGraph]);
-
-  const handleRootEditSave = useCallback(async (newValue) => {
-    if (!selectedGraph || !newValue || !newValue.trim() || !supabase) {
-      setIsRootEditing(false);
-      setRootEditValue("");
-      return;
-    }
-
-    if (newValue.trim() === selectedGraph.title) {
-      setIsRootEditing(false);
-      setRootEditValue("");
-      return;
-    }
-
-    try {
-      const api = await import("../api");
-      const res = await api.fetchWithAuth(supabase, `/api/graphs/${selectedGraph.id}`, {
-        method: "PUT",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ title: newValue.trim() }),
-      });
-
-      if (res.ok) {
-        const updated = await res.json();
-        if (onGraphsUpdate) {
-          onGraphsUpdate((prev) => prev.map((g) => (g.id === selectedGraph.id ? updated.graph : g)));
-        }
-        if (setSelectedGraph) {
-          setSelectedGraph(updated.graph);
-        }
-        // Refresh graphs list to update date
-        if (onGraphsRefresh) {
-          onGraphsRefresh(true);
-        }
-      }
-    } catch (err) {
-      console.error("Failed to update graph title:", err);
-    }
-
-    setIsRootEditing(false);
-    setRootEditValue("");
-  }, [selectedGraph, supabase, onGraphsUpdate, setSelectedGraph, onGraphsRefresh]);
-
-  const handleRootEditCancel = useCallback(() => {
-    setIsRootEditing(false);
-    setRootEditValue("");
-  }, []);
-
-  const handleRootCreateChild = useCallback(async () => {
-    if (!selectedGraph || !supabase) {
-      console.error("Cannot create root chat: missing graph or supabase client");
-      return;
-    }
-
-    // Save current viewport to restore it after update
-    const currentViewport = getViewport();
-
-    try {
-      const api = await import("../api");
-      const title = "New Chat";
-      const res = await api.fetchWithAuth(supabase, "/api/chats", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ 
-          graphId: selectedGraph.id,
-          title,
-          parentId: null, // Root chat has no parent
-        }),
-      });
-
-      if (res.ok) {
-        const payload = await res.json();
-        const created = payload?.chat || payload;
-        if (onChatsUpdate) {
-          onChatsUpdate((prev) => [created, ...prev]);
-        }
-        // Restore viewport after a brief delay to allow nodes to update
-        setTimeout(() => {
-          setViewport(currentViewport, { duration: 0 });
-        }, 100);
-        // Refresh graphs list to update date
-        if (onGraphsRefresh) {
-          onGraphsRefresh(true);
-        }
-      }
-    } catch (err) {
-      console.error("Failed to create root chat:", err);
-    }
-  }, [selectedGraph, supabase, onChatsUpdate, getViewport, setViewport, onGraphsRefresh]);
-
-  const handleRootDeleteConfirm = useCallback(async () => {
-    if (!selectedGraph || !supabase) {
-      console.error("Supabase client not available for graph deletion");
-      setShowRootDeleteConfirm(false);
-      return;
-    }
-
-    try {
-      const api = await import("../api");
-      const res = await api.fetchWithAuth(supabase, `/api/graphs/${selectedGraph.id}`, {
-        method: "DELETE",
-      });
-
-      if (res.ok) {
-        if (onGraphsUpdate) {
-          onGraphsUpdate((prev) => prev.filter((g) => g.id !== selectedGraph.id));
-        }
-        if (setSelectedGraph) {
-          setSelectedGraph(null);
-        }
-        if (onChatsUpdate) {
-          onChatsUpdate([]);
-        }
-        if (setSelectedChat) {
-          setSelectedChat(null);
-        }
-        if (setShowChat) {
-          setShowChat(false);
-        }
-      }
-    } catch (err) {
-      console.error("Failed to delete graph:", err);
-    }
-
-    setShowRootDeleteConfirm(false);
-  }, [selectedGraph, supabase, onGraphsUpdate, setSelectedGraph, onChatsUpdate, setSelectedChat, setShowChat]);
-
   // Delete chat (cascading)
   const handleDeleteConfirm = useCallback(async () => {
     if (!deleteConfirmChatId) return;
 
     if (!supabase) {
       console.error("Supabase client not available for deletion");
+    setDeleteConfirmChatId(null);
+      return;
+    }
+
+    const chatToDelete = chats.find((c) => c.id === deleteConfirmChatId);
+    if (!chatToDelete || !chatToDelete.parent_id) {
+      // Prevent deleting the root chat
       setDeleteConfirmChatId(null);
       return;
     }
@@ -959,7 +637,7 @@ export default function Tree({
 
     // Calculate layouts for all root chats
     rootChats.forEach((chat) => {
-      calculateLayout(chat, 1);
+      calculateLayout(chat, 0);
     });
 
     // Calculate total width needed
@@ -991,8 +669,12 @@ export default function Tree({
       const isEditing = editingChatId === chat.id;
       const isHovered = hoveredChatId === chat.id;
       const isSelected = selectedChat?.id === chat.id;
+      const isRootChat = chat.parent_id == null;
+      const canDelete = !isRootChat;
       const showButtons = (isHovered || isSelected) && !deleteConfirmChatId && !isEditing;
-      const showDeleteConfirm = deleteConfirmChatId === chat.id;
+      const showDeleteConfirm = canDelete && deleteConfirmChatId === chat.id;
+      const nodeBackground = isRootChat ? "var(--cg-node-root-bg)" : "var(--cg-node-chat-bg)";
+      const nodeBorder = isRootChat ? "var(--cg-node-root-border)" : "var(--cg-node-chat-border)";
 
       nodesList.push({
         id: nodeId,
@@ -1000,7 +682,7 @@ export default function Tree({
         position: { x: layout.x, y: layout.y },
         data: { 
           label: chat.title || "Untitled Chat",
-        chatId: chat.id,
+          chatId: chat.id,
           isEditing,
           initialEditValue: chat.title || "",
           showButtons,
@@ -1009,14 +691,16 @@ export default function Tree({
           onEditSave: handleEditSave,
           onEditCancel: handleEditCancel,
           onCreateChild: () => handleCreateChild(chat.id),
-          onDeleteClick: () => setDeleteConfirmChatId(chat.id),
-          onDeleteConfirm: handleDeleteConfirm,
-          onDeleteCancel: () => setDeleteConfirmChatId(null),
+          onDeleteClick: canDelete ? () => setDeleteConfirmChatId(chat.id) : null,
+          onDeleteConfirm: canDelete ? handleDeleteConfirm : null,
+          onDeleteCancel: canDelete ? () => setDeleteConfirmChatId(null) : null,
+          isRoot: isRootChat,
+          canDelete,
         },
         draggable: !isEditing && !showButtons && !showDeleteConfirm,
         style: {
-          background: "var(--cg-node-chat-bg)",
-          border: "3px solid var(--cg-node-chat-border)",
+          background: nodeBackground,
+          border: `3px solid ${nodeBorder}`,
           borderRadius: "10px",
           padding: "10px",
           fontWeight: "bold",
@@ -1046,47 +730,9 @@ export default function Tree({
       });
     };
 
-    // Add root node (centered above all root chats)
-        const rootId = `root-${selectedGraph.id}`;
-    let rootNodeX = 0;
-    if (rootChats.length > 0) {
-      // Calculate average x position of root chats
-      const sumX = rootChats.reduce((sum, chat) => sum + chat._layout.x, 0);
-      rootNodeX = sumX / rootChats.length;
-    }
-    
-    const showRootButtons = isRootHovered && !showRootDeleteConfirm && !isRootEditing;
-      
-        nodesList.push({
-          id: rootId,
-      type: "root",
-      position: { x: rootNodeX, y: ROOT_Y },
-      data: {
-        label: selectedGraph.title || "Graph",
-        isEditing: isRootEditing,
-        editValue: rootEditValue,
-        showButtons: showRootButtons,
-        showDeleteConfirm: showRootDeleteConfirm,
-        onEditStart: handleRootEditStart,
-        onEditSave: handleRootEditSave,
-        onEditCancel: handleRootEditCancel,
-        onCreateChild: handleRootCreateChild,
-        onDeleteClick: () => setShowRootDeleteConfirm(true),
-        onDeleteConfirm: handleRootDeleteConfirm,
-        onDeleteCancel: () => setShowRootDeleteConfirm(false),
-      },
-          style: {
-            background: "var(--cg-node-root-bg)",
-            border: "2px solid var(--cg-node-root-border)",
-            borderRadius: "10px",
-            padding: "10px",
-            fontWeight: "bold",
-          },
-        });
-
     // Build tree for each root chat
     rootChats.forEach((chat) => {
-      buildNodesAndEdges(chat, rootId);
+      buildNodesAndEdges(chat, null);
     });
 
     setNodes(nodesList);
@@ -1098,10 +744,6 @@ export default function Tree({
     hoveredChatId,
     deleteConfirmChatId,
     selectedChat,
-    isRootHovered,
-    isRootEditing,
-    rootEditValue,
-    showRootDeleteConfirm,
     setNodes,
     setEdges,
     handleEditStart,
@@ -1109,11 +751,6 @@ export default function Tree({
     handleEditCancel,
     handleCreateChild,
     handleDeleteConfirm,
-    handleRootEditStart,
-    handleRootEditSave,
-    handleRootEditCancel,
-    handleRootCreateChild,
-    handleRootDeleteConfirm,
     loading,
   ]);
 
@@ -1138,9 +775,6 @@ export default function Tree({
     return () => {
       if (hoverTimeoutRef.current) {
         clearTimeout(hoverTimeoutRef.current);
-      }
-      if (rootHoverTimeoutRef.current) {
-        clearTimeout(rootHoverTimeoutRef.current);
       }
     };
   }, []);
@@ -1205,28 +839,15 @@ export default function Tree({
         onNodeClick={handleNodeClick}
         onNodeMouseEnter={(event, node) => {
           if (node.type === "chat") {
-            // Clear any pending timeout
             if (hoverTimeoutRef.current) {
               clearTimeout(hoverTimeoutRef.current);
               hoverTimeoutRef.current = null;
             }
             setHoveredChatId(node.data.chatId);
-          } else if (node.type === "root") {
-            // Clear any pending timeout for root node
-            if (rootHoverTimeoutRef.current) {
-              clearTimeout(rootHoverTimeoutRef.current);
-              rootHoverTimeoutRef.current = null;
-            }
-            // Mark as actively hovered
-            rootHoverActiveRef.current = true;
-            // Set hover state immediately to prevent glitches
-            setIsRootHovered(true);
           }
         }}
         onNodeMouseLeave={(event, node) => {
           if (node.type === "chat") {
-            // Add a small delay before clearing hover to prevent rapid state changes
-            // This prevents nodes from disappearing when moving quickly between nodes
             if (hoverTimeoutRef.current) {
               clearTimeout(hoverTimeoutRef.current);
             }
@@ -1234,21 +855,6 @@ export default function Tree({
               setHoveredChatId(null);
               hoverTimeoutRef.current = null;
             }, 100);
-          } else if (node.type === "root") {
-            // Mark as not actively hovered
-            rootHoverActiveRef.current = false;
-            // Add a delay before clearing root hover to prevent glitches during node rebuilds
-            // Use a longer timeout than chat nodes since root node rebuilds can take longer
-            if (rootHoverTimeoutRef.current) {
-              clearTimeout(rootHoverTimeoutRef.current);
-            }
-            rootHoverTimeoutRef.current = setTimeout(() => {
-              // Only clear if mouse hasn't re-entered
-              if (!rootHoverActiveRef.current) {
-                setIsRootHovered(false);
-              }
-              rootHoverTimeoutRef.current = null;
-            }, 150);
           }
         }}
         nodesDraggable={true}

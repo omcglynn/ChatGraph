@@ -1,8 +1,6 @@
 {
-  "dependencies": {
-    "@supabase/auth-ui-react": "^0.4.7",
-    "@supabase/auth-ui-shared": "^0.1.8",
-    "@supabase/supabase-js": "^2.74.0",
-    "react-router-dom": "^7.9.3"
-  }
+  "name": "chatgraph",
+  "version": "1.0.0",
+  "private": true,
+  "description": "ChatGraph - Branching conversation graphs with AI"
 }

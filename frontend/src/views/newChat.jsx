@@ -31,10 +31,11 @@ export default function NewChat({ onCreate, supabase }) {
         }
         
         const payload = await res.json();
-        const created = payload?.graph || payload;
-        
+        const createdGraph = payload?.graph || payload;
+        const rootChat = payload?.rootChat || null;
+
         if (onCreate) {
-          onCreate(created);
+          onCreate(createdGraph, rootChat);
         }
         
         setTitle('');

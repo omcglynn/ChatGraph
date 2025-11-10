@@ -4,7 +4,8 @@ import { supabase, createUserClient } from "../supabaseClient.js";
 const router = express.Router();
 
 // ✅ POST /api/chats
-// ✅ POST /api/chats (Supports Branching)
+// Creates a new chat, optionally as a branch from a parent chat
+// Body: { graphId, title, parentId? }
 router.post("/", async (req, res) => {
 	try {
 	  const authHeader = req.headers.authorization;
@@ -25,34 +26,31 @@ router.post("/", async (req, res) => {
   
 	  const userId = userData.user.id;
 	  const userClient = createUserClient(token);
-  
-	  // ✅ If this is a branched chat, gather history
-	  let parentHistory = [];
+
+	  // ✅ If this is a branched chat, create AI summary
 	  let parentSummary = "";
-  
+
 	  if (parentId) {
 		// Fetch messages from parent chat
 		const { data: messages, error: msgError } = await userClient
 		  .from("messages")
-		  .select("author, content, created_at")
+		  .select("author, content")
 		  .eq("chat_id", parentId)
 		  .order("created_at", { ascending: true });
-  
+
 		if (msgError) {
 		  console.error("❌ Error fetching parent messages:", msgError);
 		  return res.status(500).json({ error: "Failed to fetch parent messages" });
 		}
-  
-		parentHistory = messages || [];
-  
-		// ✅ Very simple summary — you can replace later with better AI summary
-		parentSummary = messages
-		  .slice(-5)
-		  .map((m) => `${m.author}: ${m.content}`)
-		  .join("\n");
+
+		// Use AI summarizer to create a summary of parent chat
+		if (messages && messages.length > 0) {
+		  const { summarizeChat } = await import("../utils/aiSummarizer.js");
+		  parentSummary = await summarizeChat(messages);
+		}
 	  }
-  
-	  // ✅ Insert with parentHistory if branching
+
+	  // ✅ Insert chat with parent_summary if branching
 	  const { data, error } = await userClient
 		.from("chats")
 		.insert([
@@ -61,12 +59,11 @@ router.post("/", async (req, res) => {
 			title,
 			user_id: userId,
 			parent_id: parentId || null,
-			parent_history: parentHistory,
-			parent_summary: parentSummary,
+			parent_summary: parentSummary || null,
 		  },
 		])
 		.select("*");
-  
+
 	  if (error) return res.status(500).json({ error: error.message });
   
 	  res.json({
@@ -76,7 +73,7 @@ router.post("/", async (req, res) => {
 	} catch (err) {
 	  res.status(500).json({ error: err.message });
 	}
-  });
+});
   
 /* GET /api/chats/:id
    - If the :id has chats where graph_id = :id -> return array of chats for that graph
@@ -109,12 +106,14 @@ router.get("/:id", async (req, res) => {
       return res.status(500).json({ error: graphErr.message });
     }
 
-    if (Array.isArray(chatsForGraph) && chatsForGraph.length > 0) {
-      // Return the list of chats for that graph
+    // If we found chats (even if empty array), return them
+    // This handles the case where a graph exists but has no chats
+    if (Array.isArray(chatsForGraph)) {
       return res.json(chatsForGraph);
     }
 
-    // Otherwise treat :id as a chat id and return a single chat
+    // If the above didn't return, try treating :id as a chat id
+    // This handles direct chat access (e.g., /api/chats/chat-id-here)
     const { data: singleChat, error: chatErr } = await userClient
       .from("chats")
       .select("*")
@@ -124,7 +123,7 @@ router.get("/:id", async (req, res) => {
     if (chatErr) {
       // If not found, return 404 to be explicit
       if (chatErr.code === "PGRST116" || /No rows found/i.test(chatErr.message)) {
-        return res.status(404).json({ error: "Chat not found" });
+        return res.status(404).json({ error: "Chat or graph not found" });
       }
       console.error("Error fetching chat by id:", chatErr);
       return res.status(500).json({ error: chatErr.message });
@@ -132,6 +131,148 @@ router.get("/:id", async (req, res) => {
 
     return res.json(singleChat || null);
   } catch (err) {
+    return res.status(500).json({ error: err.message });
+  }
+});
+
+/* PUT /api/chats/:id
+   Updates a chat's title
+*/
+router.put("/:id", async (req, res) => {
+  try {
+    const authHeader = req.headers.authorization;
+    if (!authHeader?.startsWith("Bearer ")) {
+      return res.status(401).json({ error: "Unauthorized" });
+    }
+
+    const token = authHeader.split(" ")[1];
+    const chatId = req.params.id;
+    const { title } = req.body;
+
+    if (!title) {
+      return res.status(400).json({ error: "Missing title" });
+    }
+
+    // Validate token
+    const { data: userData, error: userError } = await supabase.auth.getUser(token);
+    if (userError || !userData?.user) return res.status(401).json({ error: "Invalid token" });
+
+    const userId = userData.user.id;
+    const userClient = createUserClient(token);
+
+    // Update the chat (only if it belongs to the user)
+    const { data, error } = await userClient
+      .from("chats")
+      .update({ title })
+      .eq("id", chatId)
+      .eq("user_id", userId)
+      .select("*")
+      .single();
+
+    if (error) {
+      console.error("Chat update error:", error);
+      if (error.code === "PGRST116" || /No rows found/i.test(error.message)) {
+        return res.status(404).json({ error: "Chat not found" });
+      }
+      return res.status(500).json({ error: error.message });
+    }
+
+    return res.json({
+      success: true,
+      chat: data
+    });
+  } catch (err) {
+    return res.status(500).json({ error: err.message });
+  }
+});
+
+/* DELETE /api/chats/:id
+   Deletes a chat, all its messages, and recursively deletes all child chats
+*/
+router.delete("/:id", async (req, res) => {
+  try {
+    const authHeader = req.headers.authorization;
+    if (!authHeader?.startsWith("Bearer ")) {
+      return res.status(401).json({ error: "Unauthorized" });
+    }
+
+    const token = authHeader.split(" ")[1];
+    const chatId = req.params.id;
+
+    // Validate token
+    const { data: userData, error: userError } = await supabase.auth.getUser(token);
+    if (userError || !userData?.user) return res.status(401).json({ error: "Invalid token" });
+
+    const userId = userData.user.id;
+    const userClient = createUserClient(token);
+
+    // Recursive function to delete a chat and all its children
+    const deleteChatRecursive = async (id) => {
+      // First, find all children of this chat
+      const { data: children, error: childrenError } = await userClient
+        .from("chats")
+        .select("id")
+        .eq("parent_id", id)
+        .eq("user_id", userId);
+
+      if (childrenError) {
+        console.error("Error fetching children:", childrenError);
+      }
+
+      // Recursively delete all children first
+      if (children && children.length > 0) {
+        for (const child of children) {
+          await deleteChatRecursive(child.id);
+        }
+      }
+
+      // Delete all messages in this chat
+      const { error: messagesError } = await userClient
+        .from("messages")
+        .delete()
+        .eq("chat_id", id);
+
+      if (messagesError) {
+        console.error("Error deleting messages:", messagesError);
+      }
+
+      // Delete the chat itself
+      const { error } = await userClient
+        .from("chats")
+        .delete()
+        .eq("id", id)
+        .eq("user_id", userId);
+
+      if (error) {
+        console.error("Chat delete error:", error);
+        throw error;
+      }
+    };
+
+    // Verify the chat exists and belongs to the user before deleting
+    const { data: chat, error: fetchError } = await userClient
+      .from("chats")
+      .select("id")
+      .eq("id", chatId)
+      .eq("user_id", userId)
+      .single();
+
+    if (fetchError) {
+      if (fetchError.code === "PGRST116" || /No rows found/i.test(fetchError.message)) {
+        return res.status(404).json({ error: "Chat not found" });
+      }
+      return res.status(500).json({ error: fetchError.message });
+    }
+
+    // Delete the chat and all its descendants
+    await deleteChatRecursive(chatId);
+
+    return res.json({
+      success: true,
+      message: "Chat and all children deleted successfully"
+    });
+  } catch (err) {
+    console.error("Error in delete chat:", err);
     return res.status(500).json({ error: err.message });
   }
 });

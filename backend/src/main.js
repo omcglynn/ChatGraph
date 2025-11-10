@@ -3,8 +3,6 @@ import cors from "cors";
 
 import authRouter from "./routes/auth.js";
 import mainRouter from "./routes/router.js";
-import branchRouter from './routes/createBranch.js';
-
 
 const app = express();
 const port = 3000;

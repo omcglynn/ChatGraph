@@ -1,31 +1,21 @@
 import React, { useState, useEffect, useRef } from "react";
 
-export default function Chat({ selectedChat, onClose /* optional */, supabase }) {
-  const initialMessages = [
-    {
-      id: "sys-1",
-      role: "system",
-      text: `Chat: ${selectedChat?.title || "New Chat"}`,
-    },
-    ...(selectedChat?.summary
-      ? selectedChat.summary.map((s, i) => ({
-          id: `ctx-${i}`,
-          role: "assistant",
-          text: typeof s === "string" ? s : s.text || JSON.stringify(s),
-        }))
-      : []),
-  ];
-
-  const [messages, setMessages] = useState(initialMessages);
+export default function Chat({ selectedChat, onClose /* optional */, supabase, onChatsUpdate, setSelectedChat }) {
+  // No initial messages - parent summary is handled in the backend
+  const [messages, setMessages] = useState([]);
   const [input, setInput] = useState("");
   const [sending, setSending] = useState(false);
   const [error, setError] = useState(null);
   const bottomRef = useRef(null);
+  const [isEditingTitle, setIsEditingTitle] = useState(false);
+  const [editTitleValue, setEditTitleValue] = useState(selectedChat?.title || "");
 
   useEffect(() => {
-    setMessages(initialMessages);
+    setMessages([]);
     setInput("");
     setError(null);
+    setEditTitleValue(selectedChat?.title || "");
+    setIsEditingTitle(false);
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [selectedChat?.id]);
 
@@ -52,9 +42,8 @@ export default function Chat({ selectedChat, onClose /* optional */, supabase })
           text: m.content,
         }));
 
-        // drop any previous persisted messages (keep initialMessages at start)
-        const base = initialMessages || [];
-        setMessages([...base, ...mapped]);
+        // Set messages directly - no system messages or parent summary shown to user
+        setMessages(mapped);
       } catch (err) {
         console.error('Error loading messages for chat', err);
       }
@@ -135,10 +124,56 @@ export default function Chat({ selectedChat, onClose /* optional */, supabase })
     }
   };
 
+  const handleTitleEditStart = () => {
+    setIsEditingTitle(true);
+    setEditTitleValue(selectedChat?.title || "");
+  };
+
+  const handleTitleEditSave = async () => {
+    if (!selectedChat || !supabase || !editTitleValue.trim()) {
+      setIsEditingTitle(false);
+      setEditTitleValue(selectedChat?.title || "");
+      return;
+    }
+
+    if (editTitleValue.trim() === selectedChat.title) {
+      setIsEditingTitle(false);
+      return;
+    }
+
+    try {
+      const api = await import('../api');
+      const res = await api.fetchWithAuth(supabase, `/api/chats/${selectedChat.id}`, {
+        method: 'PUT',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ title: editTitleValue.trim() }),
+      });
+
+      if (res.ok) {
+        const updated = await res.json();
+        if (onChatsUpdate) {
+          onChatsUpdate((prev) => prev.map((c) => (c.id === selectedChat.id ? updated.chat : c)));
+        }
+        if (setSelectedChat) {
+          setSelectedChat(updated.chat);
+        }
+      }
+    } catch (err) {
+      console.error('Failed to update chat title:', err);
+    }
+
+    setIsEditingTitle(false);
+  };
+
+  const handleTitleEditCancel = () => {
+    setIsEditingTitle(false);
+    setEditTitleValue(selectedChat?.title || "");
+  };
+
   return (
     <div className="chat-container">
       <div className="chat-header">
-        <div style={{ display: "flex", gap: 12, alignItems: "center" }}>
+        <div style={{ display: "flex", gap: 12, alignItems: "center", flexWrap: "wrap" }}>
           <button
             onClick={() => {
               if (typeof onClose === "function") onClose();
@@ -149,9 +184,57 @@ export default function Chat({ selectedChat, onClose /* optional */, supabase })
             ← Graph
           </button>
 
-          <div style={{ fontWeight: 700, color: "var(--cg-text)" }}>
-            {selectedChat?.title || "Chat"}
-          </div>
+          {isEditingTitle ? (
+            <input
+              type="text"
+              value={editTitleValue}
+              onChange={(e) => setEditTitleValue(e.target.value)}
+              onBlur={handleTitleEditSave}
+              onKeyDown={(e) => {
+                if (e.key === "Enter") {
+                  e.preventDefault();
+                  e.target.blur();
+                } else if (e.key === "Escape") {
+                  e.preventDefault();
+                  handleTitleEditCancel();
+                }
+              }}
+              onClick={(e) => e.stopPropagation()}
+              autoFocus
+              style={{
+                background: "var(--cg-input-bg)",
+                border: "2px solid var(--cg-primary)",
+                borderRadius: "4px",
+                padding: "4px 8px",
+                color: "var(--cg-text)",
+                fontSize: "inherit",
+                fontWeight: 700,
+                outline: "none",
+                minWidth: "150px",
+              }}
+            />
+          ) : (
+            <div style={{ display: "flex", gap: 8, alignItems: "center" }}>
+              <div style={{ fontWeight: 700, color: "var(--cg-text)" }}>
+                {selectedChat?.title || "Chat"}
+              </div>
+              <button
+                onClick={handleTitleEditStart}
+                style={{
+                  background: "transparent",
+                  border: "none",
+                  cursor: "pointer",
+                  padding: "4px",
+                  fontSize: "14px",
+                  display: "flex",
+                  alignItems: "center",
+                }}
+                title="Edit chat title"
+              >
+                ✏️
+              </button>
+            </div>
+          )}
         </div>
 
         <div style={{ fontSize: "0.9rem", color: "var(--cg-muted)" }}>

@@ -1,10 +1,11 @@
-import React, { useState, useEffect, useCallback } from "react";
+import React, { useState, useEffect, useCallback, useRef } from "react";
 import Tree from "./Tree"; 
 import Chat from "./Chat"; 
 import NewChat from "./newChat";
 import ThemeToggle from "../components/ThemeToggle";
 import "../styles/index.css";
 import { ReactFlowProvider } from "@xyflow/react";
+import { formatDate } from "../utils/dateFormatter";
 
 export default function Homepage({ supabase, user, onLogout }) {
   const [selectedGraph, setSelectedGraph] = useState(null);
@@ -21,20 +22,50 @@ export default function Homepage({ supabase, user, onLogout }) {
   // desired ids parsed from the URL on initial load; used to safely restore state
   const [desiredGraphId, setDesiredGraphId] = useState(null);
   const [desiredChatId, setDesiredChatId] = useState(null);
+  // Track editing state for graph titles
+  const [editingGraphId, setEditingGraphId] = useState(null);
+  const [editingTitle, setEditingTitle] = useState("");
+  // Track if graphs have been loaded to prevent reload on focus
+  const graphsLoadedRef = useRef(false);
+  // Track deletion confirmation
+  const [deletingGraphId, setDeletingGraphId] = useState(null);
 
-  const loadChatsForGraph = useCallback(async (graphId) => {
-    if (!user || !supabase || !graphId) return;
+  const loadChatsForGraph = useCallback(async (graphId, force = false) => {
+    if (!user || !supabase || !graphId) {
+      // Clear chats if no graphId provided
+      setChats([]);
+      setSelectedChat(null);
+      setShowChat(false);
+      return;
+    }
+    
+    // Don't reload if we're already viewing this graph and force is false
+    if (!force && selectedGraph?.id === graphId) {
+      return;
+    }
+    
     setLoadingChats(true);
+    // Clear old chats immediately to prevent showing stale data
+    setChats([]);
+    setSelectedChat(null);
+    setShowChat(false);
+    
     try {
       const api = await import('../api');
-      // Prefer REST param style, but fall back to legacy query form if necessary
-      let res = await api.fetchWithAuth(supabase, `/api/chats/${graphId}`);
+      const res = await api.fetchWithAuth(supabase, `/api/chats/${graphId}`);
+      
       if (!res.ok) {
-        res = await api.fetchWithAuth(supabase, `/api/chats?graphId=${graphId}`);
+        // If 404, it might be an empty graph (which is fine)
+        if (res.status === 404) {
+          setChats([]);
+          return;
+        }
+        throw new Error(`Failed to load chats: ${res.status}`);
       }
-      if (!res.ok) throw new Error(`Failed to load chats: ${res.status}`);
+      
       const data = await res.json();
       setChats(Array.isArray(data) ? data : []);
+      
       // If a desired chat id was parsed from the URL, only select it if it belongs to this graph/user
       if (desiredChatId) {
         const foundChat = (Array.isArray(data) ? data : []).find((ch) => ch.id === desiredChatId);
@@ -46,16 +77,36 @@ export default function Homepage({ supabase, user, onLogout }) {
       }
     } catch (err) {
       console.error("Failed to fetch chats for graph:", err);
+      // On error, ensure chats are cleared
+      setChats([]);
     }
     finally {
       setLoadingChats(false);
     }
-  }, [user, supabase, desiredChatId]);
+  }, [user, supabase, desiredChatId, selectedGraph?.id]);
+
+  // Track the last user ID to detect user changes
+  const lastUserIdRef = useRef(null);
 
   useEffect(() => {
     // load user's graphs on mount or when user changes
     const loadGraphs = async () => {
-      if (!user || !supabase) return;
+      if (!user || !supabase) {
+        graphsLoadedRef.current = false;
+        lastUserIdRef.current = null;
+        setGraphs([]);
+        return;
+      }
+      
+      // Check if user changed
+      const userIdChanged = lastUserIdRef.current !== user.id;
+      lastUserIdRef.current = user.id;
+      
+      // Only reload if user changed or graphs haven't been loaded yet
+      if (!userIdChanged && graphsLoadedRef.current) {
+        return;
+      }
+      
       setLoadingGraphs(true);
       setGraphsError(null);
       try {
@@ -64,30 +115,32 @@ export default function Homepage({ supabase, user, onLogout }) {
         if (!res.ok) throw new Error(`Failed to load graphs: ${res.status}`);
         const data = await res.json();
         setGraphs(Array.isArray(data) ? data : []);
-        // If a graph id was present in the URL, only select it if it belongs to this user
-        if (desiredGraphId) {
-          const found = (Array.isArray(data) ? data : []).find((gg) => gg.id === desiredGraphId);
-          if (found) {
-              setSelectedGraph(found);
-              // ensure we show the graph view (not the NewChat landing) when restoring from URL
-              setShowNewChat(false);
-              // load chats for the graph so we can also restore chat selection
-              await loadChatsForGraph(found.id);
-            } else {
-            // clear desired id if not found to avoid accidental matches later
-            setDesiredGraphId(null);
-          }
-        }
+        graphsLoadedRef.current = true;
       } catch (err) {
         console.error("Failed to fetch graphs:", err);
         setGraphsError(err.message || String(err));
+        graphsLoadedRef.current = false;
       } finally {
         setLoadingGraphs(false);
       }
     };
 
     loadGraphs();
-  }, [user, supabase, desiredGraphId, loadChatsForGraph]);
+  }, [user?.id, supabase]);
+
+  // Restore graph/chat from URL after graphs are loaded
+  useEffect(() => {
+    if (!desiredGraphId || !graphs.length || graphsLoadedRef.current === false) return;
+    
+    const found = graphs.find((gg) => gg.id === desiredGraphId);
+    if (found && !selectedGraph) {
+      setSelectedGraph(found);
+      setShowNewChat(false);
+      loadChatsForGraph(found.id, true);
+    } else if (!found) {
+      setDesiredGraphId(null);
+    }
+  }, [desiredGraphId, graphs, selectedGraph, loadChatsForGraph]);
 
   // Parse URL params once on mount to restore graph/chat selection if present
   useEffect(() => {
@@ -163,11 +216,179 @@ export default function Homepage({ supabase, user, onLogout }) {
               filteredGraphs.map((g) => (
                 <div
                   key={g.id}
-                  onClick={() => { setSelectedGraph(g); setShowNewChat(false); setShowChat(false); setSelectedChat(null); loadChatsForGraph(g.id); }}
+                  onClick={(e) => {
+                    // Don't trigger graph selection if clicking on buttons or input
+                    if (e.target.closest('.chat-item-actions') || e.target.tagName === 'INPUT') return;
+                    
+                    // If clicking the same graph that's already selected, don't reload
+                    if (selectedGraph?.id === g.id) {
+                      // Just ensure we're showing the graph view (not chat view)
+                      setShowChat(false);
+                      return;
+                    }
+                    
+                    // Clear state first
+                    setSelectedChat(null);
+                    setShowChat(false);
+                    setShowNewChat(false);
+                    // Then set new graph and load its chats
+                    setSelectedGraph(g);
+                    loadChatsForGraph(g.id, true);
+                  }}
                   className={`chat-item ${selectedGraph?.id === g.id ? "selected" : ""}`}
                 >
-                  {g.title}
-                  <div className="chat-date">{g.created_at || g.date}</div>
+                  <div className="chat-item-content">
+                    <div className="chat-item-title">
+                      {editingGraphId === g.id ? (
+                        <input
+                          type="text"
+                          value={editingTitle}
+                          onChange={(e) => setEditingTitle(e.target.value)}
+                          onBlur={async () => {
+                            if (editingTitle.trim() && editingTitle !== g.title) {
+                              try {
+                                const api = await import('../api');
+                                const res = await api.fetchWithAuth(supabase, `/api/graphs/${g.id}`, {
+                                  method: 'PUT',
+                                  headers: { 'Content-Type': 'application/json' },
+                                  body: JSON.stringify({ title: editingTitle.trim() }),
+                                });
+                                if (res.ok) {
+                                  const updated = await res.json();
+                                  setGraphs((prev) =>
+                                    prev.map((graph) =>
+                                      graph.id === g.id ? updated.graph : graph
+                                    )
+                                  );
+                                  // Update selected graph if it's the one being edited
+                                  if (selectedGraph?.id === g.id) {
+                                    setSelectedGraph(updated.graph);
+                                  }
+                                }
+                              } catch (err) {
+                                console.error('Failed to update graph title:', err);
+                              }
+                            }
+                            setEditingGraphId(null);
+                            setEditingTitle("");
+                          }}
+                          onKeyDown={(e) => {
+                            if (e.key === 'Enter') {
+                              e.target.blur();
+                            } else if (e.key === 'Escape') {
+                              setEditingGraphId(null);
+                              setEditingTitle("");
+                            }
+                          }}
+                          onClick={(e) => e.stopPropagation()}
+                          autoFocus
+                          style={{
+                            background: 'transparent',
+                            border: '1px solid var(--cg-primary)',
+                            borderRadius: '4px',
+                            padding: '4px 8px',
+                            color: 'inherit',
+                            fontSize: 'inherit',
+                            fontWeight: 'inherit',
+                            width: '100%',
+                          }}
+                        />
+                      ) : (
+                        <span>{g.title}</span>
+                      )}
+                      <div className="chat-date">{formatDate(g.created_at)}</div>
+                    </div>
+                    {editingGraphId !== g.id && (
+                      <div className="chat-item-actions" onClick={(e) => e.stopPropagation()}>
+                        <button
+                          className="chat-item-action-btn"
+                          onClick={(e) => {
+                            e.stopPropagation();
+                            setEditingGraphId(g.id);
+                            setEditingTitle(g.title || "");
+                          }}
+                          title="Edit graph name"
+                        >
+                          ✏️
+                        </button>
+                        <button
+                          className="chat-item-action-btn delete"
+                          onClick={(e) => {
+                            e.stopPropagation();
+                            setDeletingGraphId(g.id);
+                          }}
+                          title="Delete graph"
+                        >
+                          🗑️
+                        </button>
+                      </div>
+                    )}
+                  </div>
+                  {deletingGraphId === g.id && (
+                    <div
+                      style={{
+                        marginTop: '8px',
+                        padding: '8px',
+                        background: 'rgba(239, 68, 68, 0.1)',
+                        borderRadius: '6px',
+                        border: '1px solid rgba(239, 68, 68, 0.3)',
+                      }}
+                      onClick={(e) => e.stopPropagation()}
+                    >
+                      <div style={{ fontSize: '0.85rem', marginBottom: '8px', color: 'var(--cg-text)' }}>
+                        Delete "{g.title}"? This will delete all chats in this graph.
+                      </div>
+                      <div style={{ display: 'flex', gap: '8px' }}>
+                        <button
+                          className="cg-button"
+                          style={{ 
+                            background: '#ef4444', 
+                            padding: '4px 12px', 
+                            fontSize: '0.85rem',
+                            flex: 1
+                          }}
+                          onClick={async (e) => {
+                            e.stopPropagation();
+                            try {
+                              const api = await import('../api');
+                              const res = await api.fetchWithAuth(supabase, `/api/graphs/${g.id}`, {
+                                method: 'DELETE',
+                              });
+                              if (res.ok) {
+                                // Remove from list
+                                setGraphs((prev) => prev.filter((graph) => graph.id !== g.id));
+                                // If this was the selected graph, clear selection
+                                if (selectedGraph?.id === g.id) {
+                                  setSelectedGraph(null);
+                                  setSelectedChat(null);
+                                  setShowChat(false);
+                                  setShowNewChat(true);
+                                  setChats([]);
+                                }
+                              } else {
+                                console.error('Failed to delete graph');
+                              }
+                            } catch (err) {
+                              console.error('Error deleting graph:', err);
+                            }
+                            setDeletingGraphId(null);
+                          }}
+                        >
+                          Delete
+                        </button>
+                        <button
+                          className="cg-button secondary"
+                          style={{ padding: '4px 12px', fontSize: '0.85rem', flex: 1 }}
+                          onClick={(e) => {
+                            e.stopPropagation();
+                            setDeletingGraphId(null);
+                          }}
+                        >
+                          Cancel
+                        </button>
+                      </div>
+                    </div>
+                  )}
                 </div>
               ))
             )}
@@ -294,32 +515,41 @@ export default function Homepage({ supabase, user, onLogout }) {
               // Show the chat conversation pane when showChat is true
               <Chat
                 selectedChat={selectedChat}
-                  onClose={() => { setShowChat(false); setSelectedChat(null); }}
+                onClose={() => { setShowChat(false); setSelectedChat(null); }}
                 supabase={supabase}
+                onChatsUpdate={setChats}
+                setSelectedChat={setSelectedChat}
               />
             ) : (
               // Otherwise show the tree for the selected chat
               <ReactFlowProvider>
                 <Tree
-                  user={user}
-                  chats={chats} // pass all chats for the selected graph so Tree builds the graph
+                  chats={chats}
                   selectedGraph={selectedGraph}
                   selectedChat={selectedChat}
                   setSelectedChat={setSelectedChat}
-                  setShowChat={setShowChat} // <-- pass the setter so Tree can open Chat
+                  setShowChat={setShowChat}
                   loading={loadingChats}
+                  supabase={supabase}
+                  onChatsUpdate={setChats}
+                  onGraphsUpdate={setGraphs}
+                  setSelectedGraph={setSelectedGraph}
                 />
               </ReactFlowProvider>
             )
           ) : (
             <ReactFlowProvider>
               <Tree
-                user={user}
                 chats={chats}
                 selectedGraph={selectedGraph}
                 selectedChat={selectedChat}
                 setSelectedChat={setSelectedChat}
                 setShowChat={setShowChat}
+                loading={loadingChats}
+                supabase={supabase}
+                onChatsUpdate={setChats}
+                onGraphsUpdate={setGraphs}
+                setSelectedGraph={setSelectedGraph}
               />
             </ReactFlowProvider>
           )}

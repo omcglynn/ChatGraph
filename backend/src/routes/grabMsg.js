@@ -1,4 +1,4 @@
-// inside routes/messages.js
+// routes/grabMsg.js - Message endpoints
 import express from "express";
 import { supabase, createUserClient } from "../supabaseClient.js";
 import { aiAnswer } from "../utils/aiResponse.js";
@@ -22,7 +22,7 @@ router.post("/", async (req, res) => {
 
     const userClient = createUserClient(token);
 
-    // Get parent summary
+    // Get parent summary and full conversation history
     const { data: chatInfo, error: chatError } = await userClient
       .from("chats")
       .select("parent_summary")
@@ -31,7 +31,20 @@ router.post("/", async (req, res) => {
 
     if (chatError) return res.status(500).json({ error: chatError.message });
 
-    const systemContext = chatInfo?.parent_summary || "";
+    const parentSummary = chatInfo?.parent_summary || "";
+
+    // Fetch full conversation history from current chat (all previous messages)
+    // Note: We fetch before inserting the new message, so this contains only previous messages
+    const { data: conversationHistory, error: historyError } = await userClient
+      .from("messages")
+      .select("author, content")
+      .eq("chat_id", chatId)
+      .order("created_at", { ascending: true });
+
+    if (historyError) {
+      console.error("Error fetching conversation history:", historyError);
+      // Continue without history if fetch fails
+    }
 
     // Insert USER message
     const { data: userMessage, error: msgError } = await userClient
@@ -46,8 +59,9 @@ router.post("/", async (req, res) => {
 
     if (msgError) return res.status(500).json({ error: msgError.message });
 
-    // AI answer with system prompt + summary
-    const aiText = await aiAnswer(content, systemContext);
+    // AI answer with full conversation history + parent summary
+    // aiAnswer will add the conversation history, then add the current prompt
+    const aiText = await aiAnswer(content, conversationHistory || [], parentSummary);
 
     // Insert AI reply
     await userClient
@@ -63,7 +77,8 @@ router.post("/", async (req, res) => {
       userMessage,
       aiMessage: aiText,
       contextUsed: {
-        parentSummary: systemContext
+        parentSummary: parentSummary,
+        conversationHistoryLength: conversationHistory?.length || 0
       }
     });
 
@@ -72,12 +87,8 @@ router.post("/", async (req, res) => {
   }
 });
 
-//////////////////////////
-// NEW: GET endpoint
-//////////////////////////
-
 /* GET /api/messages/:chatId
-   - Returns messages for the specified chatId, ordered ascending by created_at
+   - Returns all messages for the specified chatId, ordered ascending by created_at
 */
 router.get("/:chatId", async (req, res) => {
   try {

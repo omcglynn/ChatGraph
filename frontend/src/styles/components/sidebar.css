@@ -33,14 +33,73 @@
   transition: all 0.15s ease;
   box-shadow: var(--cg-shadow);
   border: 1px solid transparent;
+  position: relative;
 }
 .chat-item:hover { transform: translateY(-1px); }
+.chat-item:hover .chat-item-actions {
+  opacity: 1;
+}
 .chat-item .chat-date { font-size: 0.8rem; color: var(--cg-muted); margin-top: 6px; }
 .chat-item.selected {
   background: var(--cg-primary);
   color: #fff;
   font-weight: 700;
   box-shadow: 0 0 8px rgba(59,130,246,0.25);
+}
+
+.chat-item-content {
+  display: flex;
+  justify-content: space-between;
+  align-items: flex-start;
+  gap: 8px;
+}
+
+.chat-item-title {
+  flex: 1;
+  min-width: 0;
+}
+
+.chat-item-actions {
+  display: flex;
+  gap: 4px;
+  opacity: 0;
+  transition: opacity 0.15s ease;
+  flex-shrink: 0;
+}
+
+.chat-item.selected .chat-item-actions {
+  opacity: 1;
+}
+
+.chat-item-action-btn {
+  background: transparent;
+  border: none;
+  cursor: pointer;
+  padding: 4px 6px;
+  border-radius: 4px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  color: var(--cg-text);
+  font-size: 14px;
+  transition: background 0.15s ease;
+}
+
+.chat-item.selected .chat-item-action-btn {
+  color: rgba(255, 255, 255, 0.9);
+}
+
+.chat-item-action-btn:hover {
+  background: rgba(0, 0, 0, 0.1);
+}
+
+.chat-item.selected .chat-item-action-btn:hover {
+  background: rgba(255, 255, 255, 0.2);
+}
+
+.chat-item-action-btn.delete:hover {
+  background: rgba(239, 68, 68, 0.2);
+  color: #ef4444;
 }
 
 /* Start Chat button */

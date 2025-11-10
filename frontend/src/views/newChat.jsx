@@ -58,12 +58,10 @@ export default function NewChat({ onCreate, supabase, graphId = null }) {
             }
           }
 
+          // Use the actual chat object from backend (has all database fields)
           const built = {
-            id: created?.id || newChat.id,
-            title: created?.title || newChat.title,
-            date: created?.created_at ? new Date(created.created_at).toLocaleDateString() : newChat.date,
-            summary: [{ text: trimmed, children: [] }],
-            children: [],
+            ...created,
+            created_at: created?.created_at || new Date().toISOString(),
           };
           onCreate && onCreate(built);
           setMessage('Chat created — select it from the sidebar to open the graph.');

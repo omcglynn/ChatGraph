@@ -1,88 +1,40 @@
-import { useState, useEffect } from 'react'
-import { createClient } from '@supabase/supabase-js'
-import { Auth } from '@supabase/auth-ui-react'
-import { ThemeSupa } from '@supabase/auth-ui-shared'
-import logo from './ChatGraphImage1.png'
-import './App.css'
-import './styles/index.css'
-import Homepage from './views/Homepage'
-import Entry from './views/Entry'
-import supabase from './supabaseClient'
+import React, { useState, useEffect } from "react";
+import "./styles/index.css";
+import Homepage from "./views/Homepage";
+import Entry from "./views/Entry";
+import supabase from "./supabaseClient";
 import "@xyflow/react/dist/style.css";
 
-
-
 export default function App() {
-  const [showLogin, setShowLogin] = useState(false)
-  const [user, setUser] = useState(null)
+  const [user, setUser] = useState(null);
 
   useEffect(() => {
-    supabase.auth.getUser().then(({ data: { user } }) => setUser(user))
+    // initial user load
+    supabase.auth.getUser().then(({ data: { user } }) => setUser(user));
 
-    const { data: subscription } = supabase.auth.onAuthStateChange((_event, session) => {
-      setUser(session?.user ?? null)
-    })
+    // listen for auth state changes
+    const { data } = supabase.auth.onAuthStateChange((_event, session) => {
+      setUser(session?.user ?? null);
+    });
 
-    return () => subscription.subscription.unsubscribe()
-  }, [])
+    // cleanup - unsubscribe safely
+    return () => data?.subscription?.unsubscribe?.();
+  }, []);
 
   const handleLogout = async () => {
-    await supabase.auth.signOut()
-    setUser(null)
-    setShowLogin(false)
-  }
-  if (user) {
-    return (
-      <div className="App">
-        <header className="App-header">
-          <h2>Welcome, {user.email} </h2>
-          <p>This is your logged-in page. </p>
-          <button onClick={handleLogout}>Logout</button>
-        </header>
-      </div>
-    )
+    await supabase.auth.signOut();
+    setUser(null);
+  };
+
+  // If not logged in, show the Entry (login) view
+  if (!user) {
+    return <Entry supabase={supabase} />;
   }
 
+  // When logged in, show the Homepage
   return (
     <div className="App">
-      <header className="App-header">
-        <img src={logo} className="App-logo" alt="logo" />
-        <p>Welcome to ChatGraph! Login or signup below.</p>
-        <p>Click "About" to learn more.</p>
-
-        {user ? (
-          <>
-            <p>Logged in as <strong>{user.email}</strong></p>
-            <button className="App-link" onClick={handleLogout}>
-              Logout
-            </button>
-          </>
-        ) : (
-          <>
-            {!showLogin ? (
-              <>
-                <button className="App-link" onClick={() => setShowLogin(true)}>
-                  Login / Signup
-                </button>
-                <div>
-                  <a className="App-link" href="/about">
-                    About
-                  </a>
-                </div>
-              </>
-            ) : (
-              <div style={{ width: 400 }}>
-                <Auth
-                  supabaseClient={supabase}
-                  appearance={{ theme: ThemeSupa }}
-                  providers={['github', 'google']}
-                  redirectTo="http://localhost:5177"
-                />
-              </div>
-            )}
-          </>
-        )}
-      </header>
+      <Homepage supabase={supabase} user={user} onLogout={handleLogout} />
     </div>
-  )
+  );
 }

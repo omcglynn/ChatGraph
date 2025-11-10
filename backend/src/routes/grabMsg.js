@@ -1,4 +1,3 @@
-// routes/grabMsg.js - Message endpoints
 import express from "express";
 import { supabase, createUserClient } from "../supabaseClient.js";
 import { aiAnswer } from "../utils/aiResponse.js";
@@ -21,7 +20,6 @@ router.post("/", async (req, res) => {
     if (userError || !userData?.user) return res.status(401).json({ error: "Invalid token" });
 
     const userClient = createUserClient(token);
-
     // Get parent summary, graph_id, and full conversation history
     const { data: chatInfo, error: chatError } = await userClient
       .from("chats")
@@ -59,6 +57,7 @@ router.post("/", async (req, res) => {
       .single();
 
     if (msgError) return res.status(500).json({ error: msgError.message });
+
 
     // AI answer with full conversation history + parent summary
     // aiAnswer will add the conversation history, then add the current prompt

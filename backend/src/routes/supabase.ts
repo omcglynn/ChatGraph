@@ -56,6 +56,7 @@ export type Database = {
           graph_id?: string | null
           id?: string
           parent_id?: string | null
+
           parent_summary?: string | null
           title?: string | null
           user_id?: string | null

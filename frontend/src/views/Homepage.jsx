@@ -19,7 +19,6 @@ export default function Homepage({ supabase, user, onLogout }) {
   const [graphs, setGraphs] = useState([]);
   const [loadingGraphs, setLoadingGraphs] = useState(false);
   const [graphsError, setGraphsError] = useState(null);
-
   const [chats, setChats] = useState([]);
   const [loadingChats, setLoadingChats] = useState(false);
   // desired ids parsed from the URL on initial load; used to safely restore state
@@ -521,7 +520,6 @@ export default function Homepage({ supabase, user, onLogout }) {
           <h2 style={{ fontSize: "1.5rem", fontWeight: "700" }}>
             Welcome, {user?.email || "User"}
           </h2>
-
           <div style={{ display: "flex", gap: 10, alignItems: "center" }}>
             <ThemeToggle />
             <button

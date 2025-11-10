@@ -46,6 +46,7 @@ export type Database = {
           graph_id: string | null
           id: string
           parent_id: string | null
+          parent_summary: string | null
           title: string | null
           user_id: string | null
         }
@@ -55,6 +56,8 @@ export type Database = {
           graph_id?: string | null
           id?: string
           parent_id?: string | null
+
+          parent_summary?: string | null
           title?: string | null
           user_id?: string | null
         }
@@ -64,6 +67,7 @@ export type Database = {
           graph_id?: string | null
           id?: string
           parent_id?: string | null
+          parent_summary?: string | null
           title?: string | null
           user_id?: string | null
         }
@@ -133,68 +137,6 @@ export type Database = {
             columns: ["chat_id"]
             isOneToOne: false
             referencedRelation: "chats"
-            referencedColumns: ["id"]
-          },
-        ]
-      }
-      summaries: {
-        Row: {
-          chat_id: string | null
-          created_at: string | null
-          end_message_id: string | null
-          id: string
-          level: number
-          parent_summary_id: string | null
-          start_message_id: string | null
-          summary: string
-        }
-        Insert: {
-          chat_id?: string | null
-          created_at?: string | null
-          end_message_id?: string | null
-          id?: string
-          level: number
-          parent_summary_id?: string | null
-          start_message_id?: string | null
-          summary: string
-        }
-        Update: {
-          chat_id?: string | null
-          created_at?: string | null
-          end_message_id?: string | null
-          id?: string
-          level?: number
-          parent_summary_id?: string | null
-          start_message_id?: string | null
-          summary?: string
-        }
-        Relationships: [
-          {
-            foreignKeyName: "summaries_chat_id_fkey"
-            columns: ["chat_id"]
-            isOneToOne: false
-            referencedRelation: "chats"
-            referencedColumns: ["id"]
-          },
-          {
-            foreignKeyName: "summaries_end_message_id_fkey"
-            columns: ["end_message_id"]
-            isOneToOne: false
-            referencedRelation: "messages"
-            referencedColumns: ["id"]
-          },
-          {
-            foreignKeyName: "summaries_parent_summary_id_fkey"
-            columns: ["parent_summary_id"]
-            isOneToOne: false
-            referencedRelation: "summaries"
-            referencedColumns: ["id"]
-          },
-          {
-            foreignKeyName: "summaries_start_message_id_fkey"
-            columns: ["start_message_id"]
-            isOneToOne: false
-            referencedRelation: "messages"
             referencedColumns: ["id"]
           },
         ]

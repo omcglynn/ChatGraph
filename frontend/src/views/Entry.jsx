@@ -16,6 +16,7 @@ export default function Entry({user}){
         <img src={logo} className="App-logo" alt="logo" />
         <p>Welcome to ChatGraph! Login or signup below.</p>
         <p>Click "About" to learn more.</p>
+
         {user ? (
           <>
             <p>Logged in as <strong>{user.email}</strong></p>

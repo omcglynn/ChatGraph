@@ -1,28 +1,26 @@
-const express = require('express')
-const app = express()
-const port = 3000
+import express from "express";
+import cors from "cors";
 
-app.get('/', (req, res) => {
-  res.send('Hello World!!')
-})
+import authRouter from "./routes/auth.js";
+import mainRouter from "./routes/router.js";
+import branchRouter from './routes/createBranch.js';
 
-app.post('/', (req, res) => {
-  res.send('Got a POST request')
-})
 
-app.put('/user', (req, res) => {
-  res.send('Got a PUT request at /user')
-})
+const app = express();
+const port = 3000;
+app.set('json spaces', 2);
 
-app.get('/user', (req, res) => {
-  res.send('Got a GET request at /user')
-})
+app.use(express.json());
+app.use(
+  cors({
+    origin: "http://localhost:5177",
+    credentials: true,
+  })
+);
 
-app.delete('/user', (req, res) => {
-  res.send('Got a DELETE request at /user')
-})
-
+app.use("/auth", authRouter); 
+app.use("/api", mainRouter);  
 
 app.listen(port, () => {
-  console.log(`Example app listening on port ${port} (http://localhost:3000/)`)
-})
+  console.log("✅ Server running on http://localhost:" + port);
+});

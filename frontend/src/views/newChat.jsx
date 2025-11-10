@@ -5,7 +5,7 @@ import React, { useState } from "react";
  * Props:
  * - onCreate(chatObject) optional: called when a new chat is created
  */
-export default function NewChat({ onCreate }) {
+export default function NewChat({ onCreate, supabase }) {
   const [title, setTitle] = useState("");
   const [prompt, setPrompt] = useState("");
   const [creating, setCreating] = useState(false);
@@ -31,13 +31,39 @@ export default function NewChat({ onCreate }) {
     };
 
     try {
-      onCreate && onCreate(newChat);
-      setTitle("");
-      setPrompt("");
-      setMessage("Chat created — select it from the sidebar to open the graph.");
+      // If supabase is available, persist the chat and initial message to backend
+      if (supabase) {
+        const res = await (await import('../api')).fetchWithAuth(supabase, '/api/chats', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ title: newChat.title, initial_message: trimmed }),
+        });
+        if (!res.ok) {
+          console.error('Failed to create chat on server', res.status);
+          setMessage('Failed to create chat on server.');
+        } else {
+          const payload = await res.json();
+          const created = payload?.chat || payload;
+          const built = {
+            id: created?.id || newChat.id,
+            title: created?.title || newChat.title,
+            date: created?.created_at ? new Date(created.created_at).toLocaleDateString() : newChat.date,
+            summary: [{ text: trimmed, children: [] }],
+            children: [],
+          };
+          onCreate && onCreate(built);
+          setMessage('Chat created — select it from the sidebar to open the graph.');
+        }
+      } else {
+        onCreate && onCreate(newChat);
+        setMessage('Chat created — select it from the sidebar to open the graph.');
+      }
+
+      setTitle('');
+      setPrompt('');
     } catch (err) {
       console.error(err);
-      setMessage("Failed to create chat.");
+      setMessage('Failed to create chat.');
     } finally {
       setCreating(false);
     }

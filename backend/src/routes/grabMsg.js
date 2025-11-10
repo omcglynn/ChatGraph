@@ -22,16 +22,30 @@ router.post("/", async (req, res) => {
 
     const userClient = createUserClient(token);
 
-    // Get parent summary
+    // Get parent summary, graph_id, and full conversation history
     const { data: chatInfo, error: chatError } = await userClient
       .from("chats")
-      .select("parent_summary")
+      .select("parent_summary, graph_id")
       .eq("id", chatId)
       .single();
 
     if (chatError) return res.status(500).json({ error: chatError.message });
 
-    const systemContext = chatInfo?.parent_summary || "";
+    const parentSummary = chatInfo?.parent_summary || "";
+    const graphId = chatInfo?.graph_id;
+
+    // Fetch full conversation history from current chat (all previous messages)
+    // Note: We fetch before inserting the new message, so this contains only previous messages
+    const { data: conversationHistory, error: historyError } = await userClient
+      .from("messages")
+      .select("author, content")
+      .eq("chat_id", chatId)
+      .order("created_at", { ascending: true });
+
+    if (historyError) {
+      console.error("Error fetching conversation history:", historyError);
+      // Continue without history if fetch fails
+    }
 
     // Insert USER message
     const { data: userMessage, error: msgError } = await userClient
@@ -58,15 +72,50 @@ router.post("/", async (req, res) => {
         author: "ai"
       });
 
-    return res.json({
-      success: true,
-      userMessage,
-      aiMessage: aiText,
-      contextUsed: {
-        parentSummary: systemContext
-      }
-    });
+      return res.json({
+        success: true,
+        userMessage,
+        aiMessage: aiText,
+        contextUsed: {
+          parentSummary: systemContext
+        }
+      });
 
+  } catch (err) {
+    return res.status(500).json({ error: err.message });
+  }
+});
+
+/* GET /api/messages/:chatId
+   - Returns all messages for the specified chatId, ordered ascending by created_at
+*/
+router.get("/:chatId", async (req, res) => {
+  try {
+    const authHeader = req.headers.authorization;
+    if (!authHeader?.startsWith("Bearer ")) {
+      return res.status(401).json({ error: "Unauthorized" });
+    }
+
+    const token = authHeader.split(" ")[1];
+    const chatId = req.params.chatId;
+
+    const { data: userData, error: userError } = await supabase.auth.getUser(token);
+    if (userError || !userData?.user) return res.status(401).json({ error: "Invalid token" });
+
+    const userClient = createUserClient(token);
+
+    const { data, error } = await userClient
+      .from("messages")
+      .select("*")
+      .eq("chat_id", chatId)
+      .order("created_at", { ascending: true });
+
+    if (error) {
+      console.error("Error fetching messages:", error);
+      return res.status(500).json({ error: error.message });
+    }
+
+    return res.json(data || []);
   } catch (err) {
     return res.status(500).json({ error: err.message });
   }

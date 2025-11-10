@@ -54,4 +54,40 @@ router.post('/', async (req, res) => {
   }
 });
 
-export default router;
+export default router;  
+
+/* ==========================
+   LIST GRAPHS  ✅ GET /api/graphs
+   Returns an array of graphs for the authenticated user
+========================== */
+router.get('/', async (req, res) => {
+  try {
+    const authHeader = req.headers.authorization;
+    if (!authHeader?.startsWith('Bearer ')) {
+      return res.status(401).json({ error: 'Unauthorized' });
+    }
+
+    const token = authHeader.split(' ')[1];
+    const { data: userData, error: userError } = await supabase.auth.getUser(token);
+    if (userError || !userData?.user) return res.status(401).json({ error: 'Invalid token' });
+
+    const userId = userData.user.id;
+    const userClient = createUserClient(token);
+
+    const { data, error } = await userClient
+      .from('graphs')
+      .select('*')
+      .eq('user_id', userId)
+      .order('created_at', { ascending: false });
+
+    if (error) {
+      console.error('Error fetching graphs:', error);
+      return res.status(500).json({ error: error.message });
+    }
+
+    return res.json(data || []);
+  } catch (err) {
+    return res.status(500).json({ error: err.message });
+  }
+});
+

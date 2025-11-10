@@ -1,6 +1,7 @@
 import React, { useState, useEffect, useRef } from "react";
+import pencilIcon from "../assets/pencil-1.svg";
 
-export default function Chat({ selectedChat, onClose /* optional */, supabase, onChatsUpdate, setSelectedChat }) {
+export default function Chat({ selectedChat, onClose /* optional */, supabase, onChatsUpdate, setSelectedChat, onGraphsRefresh }) {
   // No initial messages - parent summary is handled in the backend
   const [messages, setMessages] = useState([]);
   const [input, setInput] = useState("");
@@ -92,6 +93,10 @@ export default function Chat({ selectedChat, onClose /* optional */, supabase, o
               // Replace thinking message with AI reply if provided, otherwise fall back to echo
               const replyText = aiText || `Echo: ${text}`;
               setMessages((m) => m.map((msg) => (msg.id === thinkingId ? { ...msg, text: replyText } : msg)));
+              // Refresh graphs list to update date
+              if (onGraphsRefresh) {
+                onGraphsRefresh(true);
+              }
               return;
             } else {
               console.warn('Failed to persist message', res.status);
@@ -156,6 +161,10 @@ export default function Chat({ selectedChat, onClose /* optional */, supabase, o
         }
         if (setSelectedChat) {
           setSelectedChat(updated.chat);
+        }
+        // Refresh graphs list to update date
+        if (onGraphsRefresh) {
+          onGraphsRefresh(true);
         }
       }
     } catch (err) {
@@ -231,7 +240,7 @@ export default function Chat({ selectedChat, onClose /* optional */, supabase, o
                 }}
                 title="Edit chat title"
               >
-                ✏️
+                <img src={pencilIcon} alt="Edit" style={{ width: "16px", height: "16px" }} />
               </button>
             </div>
           )}

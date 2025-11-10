@@ -11,6 +11,9 @@ import {
   Position,
 } from "@xyflow/react";
 import "@xyflow/react/dist/style.css";
+import pencilIcon from "../assets/pencil-1.svg";
+import plusIcon from "../assets/plus.svg";
+import trashIcon from "../assets/trash-3.svg";
 
 // Simple Chat Node Component
 const ChatNode = ({ data }) => {
@@ -137,7 +140,7 @@ const ChatNode = ({ data }) => {
               <button
                 type="button"
                 onClick={(e) => {
-                  e.stopPropagation();
+                e.stopPropagation();
                   onEditStart();
                 }}
                 style={{
@@ -149,12 +152,12 @@ const ChatNode = ({ data }) => {
                 }}
                 title="Edit chat name"
               >
-                ✏️
+                <img src={pencilIcon} alt="Edit" style={{ width: "16px", height: "16px" }} />
               </button>
               <button
                 type="button"
-                onClick={(e) => {
-                  e.stopPropagation();
+              onClick={(e) => {
+                e.stopPropagation();
                   onCreateChild();
                 }}
                 style={{
@@ -166,7 +169,7 @@ const ChatNode = ({ data }) => {
                 }}
                 title="Create child chat"
               >
-                ➕
+                <img src={plusIcon} alt="Add" style={{ width: "16px", height: "16px" }} />
               </button>
               <button
                 type="button"
@@ -183,7 +186,7 @@ const ChatNode = ({ data }) => {
                 }}
                 title="Delete chat"
               >
-                🗑️
+                <img src={trashIcon} alt="Delete" style={{ width: "16px", height: "16px" }} />
               </button>
             </div>
           )}
@@ -209,10 +212,10 @@ const ChatNode = ({ data }) => {
                   <button
                     type="button"
                     onClick={(e) => {
-                      e.stopPropagation();
+                  e.stopPropagation();
                     onDeleteConfirm();
-                    }}
-                    style={{
+                }}
+                style={{
                     background: "#ef4444",
                     color: "white",
                     border: "none",
@@ -224,11 +227,11 @@ const ChatNode = ({ data }) => {
                     }}
                   >
                     Delete
-                  </button>
-                <button
-                  type="button"
-                  onClick={(e) => {
-                    e.stopPropagation();
+              </button>
+              <button
+                type="button"
+                onClick={(e) => {
+                  e.stopPropagation();
                     onDeleteCancel();
                   }}
                   style={{
@@ -297,10 +300,10 @@ const RootNode = ({ data }) => {
         padding: 10,
         fontWeight: "bold",
         textAlign: "center",
-      }}
-      onMouseDown={(e) => {
+                }}
+                onMouseDown={(e) => {
         if (isEditing || showButtons || showDeleteConfirm) {
-          e.stopPropagation();
+                  e.stopPropagation();
         }
       }}
     >
@@ -330,7 +333,7 @@ const RootNode = ({ data }) => {
           }}
           onClick={(e) => e.stopPropagation()}
           autoFocus
-          style={{
+                style={{
             background: "var(--cg-input-bg)",
             border: "2px solid var(--cg-primary)",
             borderRadius: "4px",
@@ -377,7 +380,7 @@ const RootNode = ({ data }) => {
                 }}
                 title="Edit graph name"
               >
-                ✏️
+                <img src={pencilIcon} alt="Edit" style={{ width: "16px", height: "16px" }} />
               </button>
               <button
                 type="button"
@@ -394,7 +397,7 @@ const RootNode = ({ data }) => {
                 }}
                 title="Create root chat"
               >
-                ➕
+                <img src={plusIcon} alt="Add" style={{ width: "16px", height: "16px" }} />
               </button>
               <button
                 type="button"
@@ -411,7 +414,7 @@ const RootNode = ({ data }) => {
                 }}
                 title="Delete graph"
               >
-                🗑️
+                <img src={trashIcon} alt="Delete" style={{ width: "16px", height: "16px" }} />
               </button>
             </div>
           )}
@@ -434,13 +437,13 @@ const RootNode = ({ data }) => {
                 Delete "{label}"? This will delete all chats in this graph.
               </div>
               <div style={{ display: "flex", gap: "8px" }}>
-                <button
-                  type="button"
-                  onClick={(e) => {
-                    e.stopPropagation();
+                  <button
+                    type="button"
+                    onClick={(e) => {
+                      e.stopPropagation();
                     onDeleteConfirm();
-                  }}
-                  style={{
+                    }}
+                    style={{
                     background: "#ef4444",
                     color: "white",
                     border: "none",
@@ -448,11 +451,11 @@ const RootNode = ({ data }) => {
                     padding: "4px 12px",
                     fontSize: "0.85rem",
                     cursor: "pointer",
-                    flex: 1,
-                  }}
-                >
-                  Delete
-                </button>
+                      flex: 1,
+                    }}
+                  >
+                    Delete
+                  </button>
                 <button
                   type="button"
                   onClick={(e) => {
@@ -492,6 +495,7 @@ export default function Tree({
   onChatsUpdate,
   onGraphsUpdate,
   setSelectedGraph,
+  onGraphsRefresh,
 }) {
   const [nodes, setNodes, onNodesChange] = useNodesState([]);
   const [edges, setEdges, onEdgesChange] = useEdgesState([]);
@@ -573,13 +577,17 @@ export default function Tree({
         if (selectedChat?.id === editingChatId) {
           setSelectedChat(updated.chat);
         }
+        // Refresh graphs list to update date
+        if (onGraphsRefresh) {
+          onGraphsRefresh(true);
+        }
       }
     } catch (err) {
       console.error("Failed to update chat title:", err);
     }
 
     setEditingChatId(null);
-  }, [editingChatId, chats, supabase, onChatsUpdate, selectedChat, setSelectedChat]);
+  }, [editingChatId, chats, supabase, onChatsUpdate, selectedChat, setSelectedChat, onGraphsRefresh]);
 
   const handleEditCancel = useCallback(() => {
     setEditingChatId(null);
@@ -610,23 +618,27 @@ export default function Tree({
           }),
         });
 
-        if (res.ok) {
+      if (res.ok) {
           const payload = await res.json();
           const created = payload?.chat || payload;
-          if (onChatsUpdate) {
+        if (onChatsUpdate) {
             onChatsUpdate((prev) => [created, ...prev]);
           }
-          // Restore viewport after a brief delay to allow nodes to update
-          setTimeout(() => {
-            setViewport(currentViewport, { duration: 0 });
-          }, 100);
+        // Restore viewport after a brief delay to allow nodes to update
+        setTimeout(() => {
+          setViewport(currentViewport, { duration: 0 });
+        }, 100);
+        // Refresh graphs list to update date
+        if (onGraphsRefresh) {
+          onGraphsRefresh(true);
         }
-      } catch (err) {
-        console.error("Failed to create child chat:", err);
       }
-    },
-    [selectedGraph, chats, supabase, onChatsUpdate, getViewport, setViewport]
-  );
+    } catch (err) {
+      console.error("Failed to create child chat:", err);
+    }
+  },
+  [selectedGraph, chats, supabase, onChatsUpdate, getViewport, setViewport, onGraphsRefresh]
+);
 
   // Root node handlers
   const handleRootEditStart = useCallback(() => {
@@ -663,6 +675,10 @@ export default function Tree({
         if (setSelectedGraph) {
           setSelectedGraph(updated.graph);
         }
+        // Refresh graphs list to update date
+        if (onGraphsRefresh) {
+          onGraphsRefresh(true);
+        }
       }
     } catch (err) {
       console.error("Failed to update graph title:", err);
@@ -670,7 +686,7 @@ export default function Tree({
 
     setIsRootEditing(false);
     setRootEditValue("");
-  }, [selectedGraph, supabase, onGraphsUpdate, setSelectedGraph]);
+  }, [selectedGraph, supabase, onGraphsUpdate, setSelectedGraph, onGraphsRefresh]);
 
   const handleRootEditCancel = useCallback(() => {
     setIsRootEditing(false);
@@ -692,7 +708,7 @@ export default function Tree({
       const res = await api.fetchWithAuth(supabase, "/api/chats", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
+        body: JSON.stringify({ 
           graphId: selectedGraph.id,
           title,
           parentId: null, // Root chat has no parent
@@ -709,11 +725,15 @@ export default function Tree({
         setTimeout(() => {
           setViewport(currentViewport, { duration: 0 });
         }, 100);
+        // Refresh graphs list to update date
+        if (onGraphsRefresh) {
+          onGraphsRefresh(true);
+        }
       }
     } catch (err) {
       console.error("Failed to create root chat:", err);
     }
-  }, [selectedGraph, supabase, onChatsUpdate, getViewport, setViewport]);
+  }, [selectedGraph, supabase, onChatsUpdate, getViewport, setViewport, onGraphsRefresh]);
 
   const handleRootDeleteConfirm = useCallback(async () => {
     if (!selectedGraph || !supabase) {
@@ -781,13 +801,17 @@ export default function Tree({
           setSelectedChat(null);
           setShowChat && setShowChat(false);
         }
+        // Refresh graphs list to update date
+        if (onGraphsRefresh) {
+          onGraphsRefresh(true);
+        }
       }
     } catch (err) {
       console.error("Failed to delete chat:", err);
     }
 
     setDeleteConfirmChatId(null);
-  }, [deleteConfirmChatId, supabase, chats, getDescendantIds, onChatsUpdate, selectedChat, setSelectedChat, setShowChat]);
+  }, [deleteConfirmChatId, supabase, chats, getDescendantIds, onChatsUpdate, selectedChat, setSelectedChat, setShowChat, onGraphsRefresh]);
 
   // Build tree structure from chats using parent_id relationships
   useEffect(() => {
@@ -972,7 +996,7 @@ export default function Tree({
         id: nodeId,
         type: "chat",
         position: { x: layout.x, y: layout.y },
-        data: {
+        data: { 
           label: chat.title || "Untitled Chat",
         chatId: chat.id,
           isEditing,
@@ -1021,7 +1045,7 @@ export default function Tree({
     };
 
     // Add root node (centered above all root chats)
-    const rootId = `root-${selectedGraph.id}`;
+        const rootId = `root-${selectedGraph.id}`;
     let rootNodeX = 0;
     if (rootChats.length > 0) {
       // Calculate average x position of root chats
@@ -1030,9 +1054,9 @@ export default function Tree({
     }
     
     const showRootButtons = isRootHovered && !showRootDeleteConfirm && !isRootEditing;
-    
-    nodesList.push({
-      id: rootId,
+      
+        nodesList.push({
+          id: rootId,
       type: "root",
       position: { x: rootNodeX, y: ROOT_Y },
       data: {
@@ -1049,14 +1073,14 @@ export default function Tree({
         onDeleteConfirm: handleRootDeleteConfirm,
         onDeleteCancel: () => setShowRootDeleteConfirm(false),
       },
-      style: {
-        background: "var(--cg-node-root-bg)",
-        border: "2px solid var(--cg-node-root-border)",
-        borderRadius: "10px",
-        padding: "10px",
-        fontWeight: "bold",
-      },
-    });
+          style: {
+            background: "var(--cg-node-root-bg)",
+            border: "2px solid var(--cg-node-root-border)",
+            borderRadius: "10px",
+            padding: "10px",
+            fontWeight: "bold",
+          },
+        });
 
     // Build tree for each root chat
     rootChats.forEach((chat) => {

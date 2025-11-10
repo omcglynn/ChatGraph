@@ -120,9 +120,13 @@ router.put('/:id', async (req, res) => {
     const userClient = createUserClient(token);
 
     // Update the graph (only if it belongs to the user)
+    // Also update created_at to reflect the modification time
     const { data, error } = await userClient
       .from('graphs')
-      .update({ title })
+      .update({ 
+        title,
+        created_at: new Date().toISOString()
+      })
       .eq('id', graphId)
       .eq('user_id', userId)
       .select('*')

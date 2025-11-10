@@ -22,16 +22,17 @@ router.post("/", async (req, res) => {
 
     const userClient = createUserClient(token);
 
-    // Get parent summary and full conversation history
+    // Get parent summary, graph_id, and full conversation history
     const { data: chatInfo, error: chatError } = await userClient
       .from("chats")
-      .select("parent_summary")
+      .select("parent_summary, graph_id")
       .eq("id", chatId)
       .single();
 
     if (chatError) return res.status(500).json({ error: chatError.message });
 
     const parentSummary = chatInfo?.parent_summary || "";
+    const graphId = chatInfo?.graph_id;
 
     // Fetch full conversation history from current chat (all previous messages)
     // Note: We fetch before inserting the new message, so this contains only previous messages
@@ -71,6 +72,15 @@ router.post("/", async (req, res) => {
         content: aiText,
         author: "ai"
       });
+
+    // Update the graph's created_at to reflect the modification
+    if (graphId) {
+      await userClient
+        .from("graphs")
+        .update({ created_at: new Date().toISOString() })
+        .eq("id", graphId)
+        .eq("user_id", userData.user.id);
+    }
 
     return res.json({
       success: true,

@@ -6,6 +6,9 @@ import ThemeToggle from "../components/ThemeToggle";
 import "../styles/index.css";
 import { ReactFlowProvider } from "@xyflow/react";
 import { formatDate } from "../utils/dateFormatter";
+import pencilIcon from "../assets/pencil-1.svg";
+import trashIcon from "../assets/trash-3.svg";
+import plusIcon from "../assets/plus.svg";
 
 export default function Homepage({ supabase, user, onLogout }) {
   const [selectedGraph, setSelectedGraph] = useState(null);
@@ -88,45 +91,46 @@ export default function Homepage({ supabase, user, onLogout }) {
   // Track the last user ID to detect user changes
   const lastUserIdRef = useRef(null);
 
+  // Extract loadGraphs as a reusable function
+  const loadGraphs = useCallback(async (force = false) => {
+    if (!user || !supabase) {
+      graphsLoadedRef.current = false;
+      lastUserIdRef.current = null;
+      setGraphs([]);
+      return;
+    }
+    
+    // Check if user changed
+    const userIdChanged = lastUserIdRef.current !== user.id;
+    lastUserIdRef.current = user.id;
+    
+    // Only reload if user changed, graphs haven't been loaded yet, or force is true
+    if (!force && !userIdChanged && graphsLoadedRef.current) {
+      return;
+    }
+    
+    setLoadingGraphs(true);
+    setGraphsError(null);
+    try {
+      const api = await import('../api');
+      const res = await api.fetchWithAuth(supabase, '/api/graphs');
+      if (!res.ok) throw new Error(`Failed to load graphs: ${res.status}`);
+      const data = await res.json();
+      setGraphs(Array.isArray(data) ? data : []);
+      graphsLoadedRef.current = true;
+    } catch (err) {
+      console.error("Failed to fetch graphs:", err);
+      setGraphsError(err.message || String(err));
+      graphsLoadedRef.current = false;
+    } finally {
+      setLoadingGraphs(false);
+    }
+  }, [user, supabase]);
+
   useEffect(() => {
     // load user's graphs on mount or when user changes
-    const loadGraphs = async () => {
-      if (!user || !supabase) {
-        graphsLoadedRef.current = false;
-        lastUserIdRef.current = null;
-        setGraphs([]);
-        return;
-      }
-      
-      // Check if user changed
-      const userIdChanged = lastUserIdRef.current !== user.id;
-      lastUserIdRef.current = user.id;
-      
-      // Only reload if user changed or graphs haven't been loaded yet
-      if (!userIdChanged && graphsLoadedRef.current) {
-        return;
-      }
-      
-      setLoadingGraphs(true);
-      setGraphsError(null);
-      try {
-        const api = await import('../api');
-        const res = await api.fetchWithAuth(supabase, '/api/graphs');
-        if (!res.ok) throw new Error(`Failed to load graphs: ${res.status}`);
-        const data = await res.json();
-        setGraphs(Array.isArray(data) ? data : []);
-        graphsLoadedRef.current = true;
-      } catch (err) {
-        console.error("Failed to fetch graphs:", err);
-        setGraphsError(err.message || String(err));
-        graphsLoadedRef.current = false;
-      } finally {
-        setLoadingGraphs(false);
-      }
-    };
-
     loadGraphs();
-  }, [user?.id, supabase]);
+  }, [loadGraphs]);
 
   // Restore graph/chat from URL after graphs are loaded
   useEffect(() => {
@@ -145,6 +149,17 @@ export default function Homepage({ supabase, user, onLogout }) {
   // Parse URL params once on mount to restore graph/chat selection if present
   useEffect(() => {
     try {
+      const path = window.location.pathname;
+      
+      // Check for /newchat route
+      if (path === '/newchat' || path === '/newchat/') {
+        setShowNewChat(true);
+        setSelectedChat(null);
+        setSelectedGraph(null);
+        setShowChat(false);
+        return;
+      }
+
       const params = new URLSearchParams(window.location.search);
       const g = params.get('graph');
       const c = params.get('chat');
@@ -152,7 +167,7 @@ export default function Homepage({ supabase, user, onLogout }) {
       if (c) setDesiredChatId(c);
 
       // also support pretty path format: /g/:graphId or /g/:graphId/c/:chatId
-  const pathMatch = window.location.pathname.match(new RegExp('^/g/([^/]+)(?:/c/([^/]+))?/?$'));
+      const pathMatch = path.match(new RegExp('^/g/([^/]+)(?:/c/([^/]+))?/?$'));
       if (pathMatch) {
         if (!g) setDesiredGraphId(pathMatch[1]);
         if (!c && pathMatch[2]) setDesiredChatId(pathMatch[2]);
@@ -160,6 +175,39 @@ export default function Homepage({ supabase, user, onLogout }) {
     } catch {
       // ignore malformed URLs
     }
+  }, []);
+
+  // Listen for popstate events (back/forward button)
+  useEffect(() => {
+    const handlePopState = () => {
+      const path = window.location.pathname;
+      if (path === '/newchat' || path === '/newchat/') {
+        setShowNewChat(true);
+        setSelectedChat(null);
+        setSelectedGraph(null);
+        setShowChat(false);
+      } else {
+        // Re-parse URL for graph/chat selection
+        try {
+          const params = new URLSearchParams(window.location.search);
+          const g = params.get('graph');
+          const c = params.get('chat');
+          if (g) setDesiredGraphId(g);
+          if (c) setDesiredChatId(c);
+          
+          const pathMatch = path.match(new RegExp('^/g/([^/]+)(?:/c/([^/]+))?/?$'));
+          if (pathMatch) {
+            if (!g) setDesiredGraphId(pathMatch[1]);
+            if (!c && pathMatch[2]) setDesiredChatId(pathMatch[2]);
+          }
+        } catch {
+          // ignore malformed URLs
+        }
+      }
+    };
+
+    window.addEventListener('popstate', handlePopState);
+    return () => window.removeEventListener('popstate', handlePopState);
   }, []);
 
 
@@ -171,27 +219,34 @@ export default function Homepage({ supabase, user, onLogout }) {
   });
 
   // keep URL in sync with selection so reload/links restore state
-  const updateUrl = (gId, cId) => {
+  const updateUrl = (gId, cId, isNewChat = false) => {
     try {
       let newUrl = '/';
-      if (gId && cId) newUrl = `/g/${gId}/c/${cId}`;
-      else if (gId) newUrl = `/g/${gId}`;
+      if (isNewChat) {
+        newUrl = '/newchat';
+      } else if (gId && cId) {
+        newUrl = `/g/${gId}/c/${cId}`;
+      } else if (gId) {
+        newUrl = `/g/${gId}`;
+      }
       window.history.replaceState(null, '', newUrl);
     } catch {
       // ignore URL update failures
     }
   };
 
-  // whenever the selectedGraph/chat changes, update the URL (safely)
+  // whenever the selectedGraph/chat or showNewChat changes, update the URL (safely)
   useEffect(() => {
-    if (selectedGraph && selectedChat && showChat) {
+    if (showNewChat && !selectedChat) {
+      updateUrl(null, null, true);
+    } else if (selectedGraph && selectedChat && showChat) {
       updateUrl(selectedGraph.id, selectedChat.id);
     } else if (selectedGraph) {
       updateUrl(selectedGraph.id, null);
     } else {
       updateUrl(null, null);
     }
-  }, [selectedGraph, selectedChat, showChat]);
+  }, [selectedGraph, selectedChat, showChat, showNewChat]);
 
   return (
     <div style={{ display: "flex", height: "100vh", background: "var(--cg-bg)" }}>
@@ -264,6 +319,8 @@ export default function Homepage({ supabase, user, onLogout }) {
                                   if (selectedGraph?.id === g.id) {
                                     setSelectedGraph(updated.graph);
                                   }
+                                  // Refresh graphs list to update date
+                                  loadGraphs(true);
                                 }
                               } catch (err) {
                                 console.error('Failed to update graph title:', err);
@@ -309,7 +366,7 @@ export default function Homepage({ supabase, user, onLogout }) {
                           }}
                           title="Edit graph name"
                         >
-                          ✏️
+                          <img src={pencilIcon} alt="Edit" style={{ width: "16px", height: "16px" }} />
                         </button>
                         <button
                           className="chat-item-action-btn delete"
@@ -319,7 +376,7 @@ export default function Homepage({ supabase, user, onLogout }) {
                           }}
                           title="Delete graph"
                         >
-                          🗑️
+                          <img src={trashIcon} alt="Delete" style={{ width: "16px", height: "16px" }} />
                         </button>
                       </div>
                     )}
@@ -365,6 +422,8 @@ export default function Homepage({ supabase, user, onLogout }) {
                                   setShowNewChat(true);
                                   setChats([]);
                                 }
+                                // Refresh graphs list to update dates
+                                loadGraphs(true);
                               } else {
                                 console.error('Failed to delete graph');
                               }
@@ -444,6 +503,8 @@ export default function Homepage({ supabase, user, onLogout }) {
                 } catch {
                   // ignore load errors for new graph
                 }
+                // Refresh graphs list to ensure proper sorting
+                loadGraphs(true);
               } catch (err) {
                 console.error('Error creating graph from sidebar:', err);
                 setShowNewChat(true);
@@ -453,8 +514,10 @@ export default function Homepage({ supabase, user, onLogout }) {
               }
             }}
             className="start-chat"
+            style={{ display: "flex", alignItems: "center", gap: "8px" }}
           >
-            ➕ New Graph
+            <img src={plusIcon} alt="Add" style={{ width: "16px", height: "16px" }} />
+            New Graph
           </button>
         </div>
       </aside>
@@ -504,11 +567,14 @@ export default function Homepage({ supabase, user, onLogout }) {
           }}
         >
           {showNewChat && !selectedChat ? (
-              <NewChat supabase={supabase} graphId={selectedGraph?.id} onCreate={(c) => {
-              // add newly created chat to sidebar list
-              setChats((prev) => [c, ...prev]);
-              setShowNewChat(true);
-              console.log("new graph created:", c);
+              <NewChat supabase={supabase} onCreate={(graph) => {
+              // add newly created graph to sidebar list and select it
+              setGraphs((prev) => [graph, ...(Array.isArray(prev) ? prev : [])]);
+              setSelectedGraph(graph);
+              setShowNewChat(false);
+              loadChatsForGraph(graph.id, true);
+              // Refresh graphs list to ensure proper sorting
+              loadGraphs(true);
             }} />
             ) : selectedChat ? (
             showChat ? (
@@ -519,6 +585,7 @@ export default function Homepage({ supabase, user, onLogout }) {
                 supabase={supabase}
                 onChatsUpdate={setChats}
                 setSelectedChat={setSelectedChat}
+                onGraphsRefresh={loadGraphs}
               />
             ) : (
               // Otherwise show the tree for the selected chat
@@ -534,6 +601,7 @@ export default function Homepage({ supabase, user, onLogout }) {
                   onChatsUpdate={setChats}
                   onGraphsUpdate={setGraphs}
                   setSelectedGraph={setSelectedGraph}
+                  onGraphsRefresh={loadGraphs}
                 />
               </ReactFlowProvider>
             )

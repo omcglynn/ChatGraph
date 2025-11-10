@@ -65,6 +65,13 @@ router.post("/", async (req, res) => {
 		.select("*");
 
 	  if (error) return res.status(500).json({ error: error.message });
+
+	  // Update the graph's created_at to reflect the modification
+	  await userClient
+		.from("graphs")
+		.update({ created_at: new Date().toISOString() })
+		.eq("id", graphId)
+		.eq("user_id", userId);
   
 	  res.json({
 		success: true,
@@ -160,6 +167,21 @@ router.put("/:id", async (req, res) => {
     const userId = userData.user.id;
     const userClient = createUserClient(token);
 
+    // First, get the chat to find its graph_id
+    const { data: chatData, error: fetchError } = await userClient
+      .from("chats")
+      .select("graph_id")
+      .eq("id", chatId)
+      .eq("user_id", userId)
+      .single();
+
+    if (fetchError) {
+      if (fetchError.code === "PGRST116" || /No rows found/i.test(fetchError.message)) {
+        return res.status(404).json({ error: "Chat not found" });
+      }
+      return res.status(500).json({ error: fetchError.message });
+    }
+
     // Update the chat (only if it belongs to the user)
     const { data, error } = await userClient
       .from("chats")
@@ -175,6 +197,15 @@ router.put("/:id", async (req, res) => {
         return res.status(404).json({ error: "Chat not found" });
       }
       return res.status(500).json({ error: error.message });
+    }
+
+    // Update the graph's created_at to reflect the modification
+    if (chatData?.graph_id) {
+      await userClient
+        .from("graphs")
+        .update({ created_at: new Date().toISOString() })
+        .eq("id", chatData.graph_id)
+        .eq("user_id", userId);
     }
 
     return res.json({
@@ -250,9 +281,10 @@ router.delete("/:id", async (req, res) => {
     };
 
     // Verify the chat exists and belongs to the user before deleting
+    // Also get graph_id to update the graph timestamp
     const { data: chat, error: fetchError } = await userClient
       .from("chats")
-      .select("id")
+      .select("id, graph_id")
       .eq("id", chatId)
       .eq("user_id", userId)
       .single();
@@ -266,6 +298,15 @@ router.delete("/:id", async (req, res) => {
 
     // Delete the chat and all its descendants
     await deleteChatRecursive(chatId);
+
+    // Update the graph's created_at to reflect the modification
+    if (chat?.graph_id) {
+      await userClient
+        .from("graphs")
+        .update({ created_at: new Date().toISOString() })
+        .eq("id", chat.graph_id)
+        .eq("user_id", userId);
+    }
 
     return res.json({
       success: true,

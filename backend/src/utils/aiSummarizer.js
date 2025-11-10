@@ -12,9 +12,9 @@ export async function summarizeChat(messages) {
       .join("\n");
 
     const prompt = `
-Summarize the following chat in 4-6 concise bullet points.
-Do NOT include personal details or redundant details.
-Focus only on the essential context needed to continue in a new direction.
+We are creating a summary of the following chat history to provide context for a branched conversation.
+Create a concise, but in depth summary that captures all main points that have been discussed.
+This summary should be as understandable as possible on its own for a new AI instance, without needing to reference the full chat history.
 
 Chat:
 ${text}

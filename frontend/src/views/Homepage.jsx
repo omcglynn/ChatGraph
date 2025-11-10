@@ -1,4 +1,4 @@
-import React, { useState } from "react";
+import React, { useState, useEffect, useCallback } from "react";
 import Tree from "./Tree"; 
 import Chat from "./Chat"; 
 import NewChat from "./newChat";
@@ -6,90 +6,141 @@ import ThemeToggle from "../components/ThemeToggle";
 import "../styles/index.css";
 import { ReactFlowProvider } from "@xyflow/react";
 
-export default function Homepage({ user, onLogout }) {
+export default function Homepage({ supabase, user, onLogout }) {
+  const [selectedGraph, setSelectedGraph] = useState(null);
   const [selectedChat, setSelectedChat] = useState(null);
   const [searchTerm, setSearchTerm] = useState("");
   const [showNewChat, setShowNewChat] = useState(true);
   const [showChat, setShowChat] = useState(false);
-  
-  const chats = [
-    {
-      id: 1,
-      title: "Easy and quick Italian cuisine recipes...",
-      date: "9/22/2025",
-      summary: [
-        {
-          text: "Pasta dishes",
-          children: [
-            {
-              id: "1-0",
-              title: "Spaghetti",
-              summary: [
-                { text: "Ingredients", children: [] },
-                { text: "Cooking steps", children: [] },
-              ],
-              children: [],
-            },
-          ],
-        },
-        {
-          text: "Tiramisu dessert",
-          children: [],
-        },
-      ]
-    },
-    {
-      id: 2,
-      title: "Is mitochondria the powerhouse of the cell?",
-      date: "9/18/2025",
-      summary: [
-        "Discussing cell biology basics",
-        "Why mitochondria matters",
-        "Exploring bioenergy processes",
-      ],
-    },
-    {
-      id: 3,
-      title: "5-Minute Breakfasts for Busy Mornings",
-      date: "9/1/2025",
-      summary: [
-        "Overnight oats variations",
-        "Microwave egg muffins",
-        "Smoothies with hidden veggies",
-      ],
-    },
-    {
-      id: 4,
-      title: "Best Boston Sports Players",
-      date: "8/29/2025",
-      summary: ["David Ortiz", "Bobby Orr", "Tom Brady", "Larry Bird"],
-    },
-    {
-      id: 5,
-      title: "Where in Cape Cod is the best to vacation in?",
-      date: "8/16/2025",
-      summary: ["Falmouth", "Martha's Vineyard", "Dennis", "Mashpee", "Nantucket"],
-    },
-  ];
+  const [graphs, setGraphs] = useState([]);
+  const [loadingGraphs, setLoadingGraphs] = useState(false);
+  const [graphsError, setGraphsError] = useState(null);
 
+  const [chats, setChats] = useState([]);
+  const [loadingChats, setLoadingChats] = useState(false);
+  // desired ids parsed from the URL on initial load; used to safely restore state
+  const [desiredGraphId, setDesiredGraphId] = useState(null);
+  const [desiredChatId, setDesiredChatId] = useState(null);
 
-  
-  // Filter chats based on search term (title + summary)
-  const filteredChats = chats.filter((chat) => {
-    const lowerSearch = searchTerm.toLowerCase();
-    const inTitle = chat.title.toLowerCase().includes(lowerSearch);
-
-    const inSummary = chat.summary?.some((s) => {
-      if (typeof s === "string") {
-        return s.toLowerCase().includes(lowerSearch);
-      } else if (s.text) {
-        return s.text.toLowerCase().includes(lowerSearch);
+  const loadChatsForGraph = useCallback(async (graphId) => {
+    if (!user || !supabase || !graphId) return;
+    setLoadingChats(true);
+    try {
+      const { data: { session } } = await supabase.auth.getSession();
+      const token = session?.access_token;
+      const res = await fetch(`http://localhost:3000/api/chats?graph_id=${graphId}`, {
+        headers: { Authorization: token ? `Bearer ${token}` : "" },
+      });
+      if (!res.ok) throw new Error(`Failed to load chats: ${res.status}`);
+      const data = await res.json();
+      setChats(Array.isArray(data) ? data : []);
+      // If a desired chat id was parsed from the URL, only select it if it belongs to this graph/user
+      if (desiredChatId) {
+        const foundChat = (Array.isArray(data) ? data : []).find((ch) => ch.id === desiredChatId);
+        if (foundChat) {
+          setSelectedChat(foundChat);
+          setShowChat(true);
+        }
+        setDesiredChatId(null);
       }
-      return false;
-    });
+    } catch (err) {
+      console.error("Failed to fetch chats for graph:", err);
+    }
+    finally {
+      setLoadingChats(false);
+    }
+  }, [user, supabase, desiredChatId]);
 
-    return inTitle || inSummary;
+  useEffect(() => {
+    // load user's graphs on mount or when user changes
+    const loadGraphs = async () => {
+      if (!user || !supabase) return;
+      setLoadingGraphs(true);
+      setGraphsError(null);
+      try {
+        const { data: { session } } = await supabase.auth.getSession();
+        const token = session?.access_token;
+        const res = await fetch("http://localhost:3000/api/graphs", {
+          headers: { Authorization: token ? `Bearer ${token}` : "" },
+        });
+        if (!res.ok) throw new Error(`Failed to load graphs: ${res.status}`);
+        const data = await res.json();
+        setGraphs(Array.isArray(data) ? data : []);
+        // If a graph id was present in the URL, only select it if it belongs to this user
+        if (desiredGraphId) {
+          const found = (Array.isArray(data) ? data : []).find((gg) => gg.id === desiredGraphId);
+          if (found) {
+              setSelectedGraph(found);
+              // ensure we show the graph view (not the NewChat landing) when restoring from URL
+              setShowNewChat(false);
+              // load chats for the graph so we can also restore chat selection
+              await loadChatsForGraph(found.id);
+            } else {
+            // clear desired id if not found to avoid accidental matches later
+            setDesiredGraphId(null);
+          }
+        }
+      } catch (err) {
+        console.error("Failed to fetch graphs:", err);
+        setGraphsError(err.message || String(err));
+      } finally {
+        setLoadingGraphs(false);
+      }
+    };
+
+    loadGraphs();
+  }, [user, supabase, desiredGraphId, loadChatsForGraph]);
+
+  // Parse URL params once on mount to restore graph/chat selection if present
+  useEffect(() => {
+    try {
+      const params = new URLSearchParams(window.location.search);
+      const g = params.get('graph');
+      const c = params.get('chat');
+      if (g) setDesiredGraphId(g);
+      if (c) setDesiredChatId(c);
+
+      // also support pretty path format: /g/:graphId or /g/:graphId/c/:chatId
+  const pathMatch = window.location.pathname.match(new RegExp('^/g/([^/]+)(?:/c/([^/]+))?/?$'));
+      if (pathMatch) {
+        if (!g) setDesiredGraphId(pathMatch[1]);
+        if (!c && pathMatch[2]) setDesiredChatId(pathMatch[2]);
+      }
+    } catch {
+      // ignore malformed URLs
+    }
+  }, []);
+
+
+  
+  // Filter graphs based on search term (title)
+  const filteredGraphs = graphs.filter((g) => {
+    const lowerSearch = searchTerm.toLowerCase();
+    return (g.title || "").toLowerCase().includes(lowerSearch);
   });
+
+  // keep URL in sync with selection so reload/links restore state
+  const updateUrl = (gId, cId) => {
+    try {
+      let newUrl = '/';
+      if (gId && cId) newUrl = `/g/${gId}/c/${cId}`;
+      else if (gId) newUrl = `/g/${gId}`;
+      window.history.replaceState(null, '', newUrl);
+    } catch {
+      // ignore URL update failures
+    }
+  };
+
+  // whenever the selectedGraph/chat changes, update the URL (safely)
+  useEffect(() => {
+    if (selectedGraph && selectedChat && showChat) {
+      updateUrl(selectedGraph.id, selectedChat.id);
+    } else if (selectedGraph) {
+      updateUrl(selectedGraph.id, null);
+    } else {
+      updateUrl(null, null);
+    }
+  }, [selectedGraph, selectedChat, showChat]);
 
   return (
     <div style={{ display: "flex", height: "100vh", background: "var(--cg-bg)" }}>
@@ -98,7 +149,7 @@ export default function Homepage({ user, onLogout }) {
           <div style={{ marginBottom: "10px" }}>
             <input
               type="text"
-              placeholder="Search chats..."
+              placeholder="Search graphs..."
               value={searchTerm}
               onChange={(e) => setSearchTerm(e.target.value)}
               className="search-input"
@@ -106,25 +157,85 @@ export default function Homepage({ user, onLogout }) {
           </div>
 
           <div className="chat-list">
-            {filteredChats.map((chat) => (
-              <div
-                key={chat.id}
-                onClick={() => { setSelectedChat(chat); setShowNewChat(false); setShowChat(false); }}
-                className={`chat-item ${selectedChat?.id === chat.id ? "selected" : ""}`}
-              >
-                {chat.title}
-                <div className="chat-date">{chat.date}</div>
-              </div>
-            ))}
+            {loadingGraphs ? (
+              <div style={{ padding: 10, color: 'var(--cg-muted)' }}>Loading graphs...</div>
+            ) : graphsError ? (
+              <div style={{ padding: 10, color: 'var(--cg-muted)' }}>Error: {graphsError}</div>
+            ) : (
+              filteredGraphs.map((g) => (
+                <div
+                  key={g.id}
+                  onClick={() => { setSelectedGraph(g); setShowNewChat(false); setShowChat(false); setSelectedChat(null); loadChatsForGraph(g.id); }}
+                  className={`chat-item ${selectedGraph?.id === g.id ? "selected" : ""}`}
+                >
+                  {g.title}
+                  <div className="chat-date">{g.created_at || g.date}</div>
+                </div>
+              ))
+            )}
           </div>
         </div>
 
         <div className="bottom-area">
           <button
-            onClick={() => { setShowNewChat(true); setSelectedChat(null); setShowChat(false); }}
+            onClick={async () => {
+              // Create a new graph on the server and select it
+              try {
+                // optimistic UI guard
+                if (!supabase) {
+                  // fallback: just show NewChat behavior
+                  setShowNewChat(true);
+                  setSelectedChat(null);
+                  setShowChat(false);
+                  setSelectedGraph(null);
+                  return;
+                }
+
+                const res = await (await import('../api')).fetchWithAuth(supabase, '/api/graphs', {
+                  method: 'POST',
+                  headers: {
+                    'Content-Type': 'application/json',
+                  },
+                  body: JSON.stringify({ title: 'New Graph' }),
+                });
+
+                if (!res.ok) {
+                  console.error('Failed to create graph', res.status);
+                  // fallback to opening NewChat so user can still start working
+                  setShowNewChat(true);
+                  setSelectedChat(null);
+                  setShowChat(false);
+                  setSelectedGraph(null);
+                  return;
+                }
+
+                const created = await res.json();
+                // created might be the object directly or wrapped; ensure shape
+                const graph = created?.id ? created : created?.graph || created;
+
+                // add to list and select it
+                setGraphs((prev) => [graph, ...(Array.isArray(prev) ? prev : [])]);
+                setSelectedGraph(graph);
+                setShowNewChat(false);
+                setShowChat(false);
+
+                // load chats for the newly created graph (likely empty)
+                try {
+                  await loadChatsForGraph(graph.id);
+                } catch {
+                  // ignore load errors for new graph
+                }
+              } catch (err) {
+                console.error('Error creating graph from sidebar:', err);
+                setShowNewChat(true);
+                setSelectedChat(null);
+                setShowChat(false);
+                setSelectedGraph(null);
+              }
+            }}
             className="start-chat"
           >
-            💬 Start Chat
+            ➕ New Graph
           </button>
         </div>
       </aside>
@@ -142,21 +253,23 @@ export default function Homepage({ user, onLogout }) {
           <h2 style={{ fontSize: "1.5rem", fontWeight: "700" }}>
             Welcome, {user?.email || "User"}
           </h2>
-          
-          <ThemeToggle />
-          <button
-            onClick={onLogout}
-            style={{
-              background: "#ef4444",
-              color: "white",
-              padding: "6px 14px",
-              border: "none",
-              borderRadius: "6px",
-              cursor: "pointer",
-            }}
-          >
-            Logout
-          </button>
+
+          <div style={{ display: "flex", gap: 10, alignItems: "center" }}>
+            <ThemeToggle />
+            <button
+              onClick={onLogout}
+              style={{
+                background: "#ef4444",
+                color: "white",
+                padding: "6px 14px",
+                border: "none",
+                borderRadius: "6px",
+                cursor: "pointer",
+              }}
+            >
+              Logout
+            </button>
+          </div>
         </div>
 
         {/* If a chat is selected, show the Chat view; otherwise show Tree */}
@@ -172,30 +285,45 @@ export default function Homepage({ user, onLogout }) {
           }}
         >
           {showNewChat && !selectedChat ? (
-            <NewChat onCreate={(c) => {
-              console.log("new chat created:", c);
+              <NewChat supabase={supabase} onCreate={(c) => {
+              // add newly created chat to sidebar list
+              setChats((prev) => [c, ...prev]);
+              setShowNewChat(true);
+              console.log("new graph created:", c);
             }} />
-          ) : selectedChat ? (
+            ) : selectedChat ? (
             showChat ? (
               // Show the chat conversation pane when showChat is true
               <Chat
                 selectedChat={selectedChat}
-                onClose={() => setShowChat(false)}
+                  onClose={() => { setShowChat(false); setSelectedChat(null); }}
+                supabase={supabase}
               />
             ) : (
               // Otherwise show the tree for the selected chat
               <ReactFlowProvider>
                 <Tree
                   user={user}
-                  chats={[selectedChat]} // pass only the selected chat so Tree builds that tree only
+                  chats={chats} // pass all chats for the selected graph so Tree builds the graph
+                  selectedGraph={selectedGraph}
                   selectedChat={selectedChat}
                   setSelectedChat={setSelectedChat}
                   setShowChat={setShowChat} // <-- pass the setter so Tree can open Chat
+                  loading={loadingChats}
                 />
               </ReactFlowProvider>
             )
           ) : (
-            <NewChat />
+            <ReactFlowProvider>
+              <Tree
+                user={user}
+                chats={chats}
+                selectedGraph={selectedGraph}
+                selectedChat={selectedChat}
+                setSelectedChat={setSelectedChat}
+                setShowChat={setShowChat}
+              />
+            </ReactFlowProvider>
           )}
         </div>
       </main>

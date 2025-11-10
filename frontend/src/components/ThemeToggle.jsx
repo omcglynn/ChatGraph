@@ -11,7 +11,6 @@ export default function ThemeToggle() {
   const [mode, setMode] = useState(initial);
 
   useEffect(() => {
-    console.log("[ThemeToggle] mounted, initial mode:", mode);
 
     const updateFromStorage = () => {
       const s = localStorage.getItem(STORAGE_KEY);

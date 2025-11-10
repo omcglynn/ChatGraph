@@ -8,10 +8,31 @@ import {
   Background,
   MiniMap,
   useReactFlow,
+  Handle,
+  Position,
 } from "@xyflow/react";
 import "@xyflow/react/dist/style.css";
 
-export default function Tree({ user, chats, selectedChat, setSelectedChat, setShowChat }) {
+// Simple node renderers must be defined outside the component (or memoized) to avoid React Flow warnings
+const ChatNode = ({ data }) => (
+  <div style={{ position: 'relative', padding: 8, fontWeight: 700, color: 'var(--cg-text)', minWidth: 120, textAlign: 'center' }}>
+    <Handle type="target" position={Position.Top} id="top" style={{ background: 'transparent' }} />
+    <div>{data.label}</div>
+    <Handle type="source" position={Position.Bottom} id="bottom" style={{ background: 'transparent' }} />
+  </div>
+);
+
+const SummaryNode = ({ data }) => (
+  <div style={{ position: 'relative', padding: 6, fontSize: 12, color: 'var(--cg-text-muted)', minWidth: 100, textAlign: 'center' }}>
+    <Handle type="target" position={Position.Top} id="top" style={{ background: 'transparent' }} />
+    <div>{data.label}</div>
+    <Handle type="source" position={Position.Bottom} id="bottom" style={{ background: 'transparent' }} />
+  </div>
+);
+
+const nodeTypes = { chat: ChatNode, summary: SummaryNode };
+
+export default function Tree({ user, chats, selectedChat, setSelectedChat, setShowChat, selectedGraph }) {
   const [nodes, setNodes, onNodesChange] = useNodesState([]);
   const [edges, setEdges, onEdgesChange] = useEdgesState([]);
   const { setCenter } = useReactFlow();
@@ -115,67 +136,111 @@ export default function Tree({ user, chats, selectedChat, setSelectedChat, setSh
     if (selectedChat) {
       buildTree(selectedChat);
     } else {
-      const rootId = "root";
-      nodesList.push({
-        id: rootId,
-        type: "input",
-        data: { label: user?.email || "All Chats" },
-        position: { x: 350, y: 0 },
-        style: {
-          background: "var(--cg-node-root-bg)",
-          border: "2px solid var(--cg-node-root-border)",
-          borderRadius: "10px",
-          padding: "10px",
-          fontWeight: "bold",
-        },
-      });
+      // When a graph is selected, show that graph as the root node; otherwise don't show an account-level root
+      const filteredChats = (chats || []).filter((c) => c && c.graph_id != null);
 
-      chats.forEach((chat, i) => {
-        const chatId = `chat-${chat.id}`;
+      if (selectedGraph) {
+        const rootId = `root-${selectedGraph.id}`;
         nodesList.push({
-          id: chatId,
-          type: "chat",
-          chatId: chat.id,
-          data: { label: chat.title },
-          position: { x: i * 250, y: 200 },
+          id: rootId,
+          type: "input",
+          data: { label: selectedGraph.title || "Graph" },
+          position: { x: 350, y: 0 },
           style: {
-            background: chat.id % 2 === 0 ? "var(--cg-node-chat-alt-bg)" : "var(--cg-node-chat-bg)",
-            border: "2px solid var(--cg-node-chat-border)",
+            background: "var(--cg-node-root-bg)",
+            border: "2px solid var(--cg-node-root-border)",
             borderRadius: "10px",
             padding: "10px",
-            cursor: "pointer",
+            fontWeight: "bold",
           },
         });
 
-        edgesList.push({
-          id: `edge-${rootId}-${chatId}`,
-          source: rootId,
-          target: chatId,
-          animated: true,
-          style: { stroke: "#3b82f6", strokeWidth: 2 },
+        filteredChats.forEach((chat, i) => {
+          const chatId = `chat-${chat.id}`;
+          nodesList.push({
+            id: chatId,
+            type: "chat",
+            chatId: chat.id,
+            data: { label: chat.title },
+            position: { x: i * 250, y: 200 },
+            style: {
+              background: chat.id % 2 === 0 ? "var(--cg-node-chat-alt-bg)" : "var(--cg-node-chat-bg)",
+              border: "2px solid var(--cg-node-chat-border)",
+              borderRadius: "10px",
+              padding: "10px",
+              cursor: "pointer",
+            },
+          });
+
+          edgesList.push({
+            id: `edge-${rootId}-${chatId}`,
+            source: rootId,
+            target: chatId,
+            animated: true,
+            style: { stroke: "#3b82f6", strokeWidth: 2 },
+          });
         });
-      });
+      } else {
+        // No graph selected: show chats without an account-level root. Also filter out any account-wide/full-graph chats (graph_id == null)
+        filteredChats.forEach((chat, i) => {
+          const chatId = `chat-${chat.id}`;
+          nodesList.push({
+            id: chatId,
+            type: "chat",
+            chatId: chat.id,
+            data: { label: chat.title },
+            position: { x: i * 250, y: 200 },
+            style: {
+              background: chat.id % 2 === 0 ? "var(--cg-node-chat-alt-bg)" : "var(--cg-node-chat-bg)",
+              border: "2px solid var(--cg-node-chat-border)",
+              borderRadius: "10px",
+              padding: "10px",
+              cursor: "pointer",
+            },
+          });
+        });
+      }
     }
 
     setNodes(nodesList);
     setEdges(edgesList);
-  }, [selectedChat, user, chats]);
+  }, [selectedChat, user, chats, selectedGraph, setNodes, setEdges]);
 
   useEffect(() => {
     if (!selectedChat) return;
     setCenter(350, 200, { zoom: 1.4, duration: 800 });
   }, [selectedChat, setCenter]);
 
+  // When a graph is selected (and no chat), center the view on the graph root
+  useEffect(() => {
+    if (!selectedGraph) return;
+    setCenter(350, 120, { zoom: 1.0, duration: 600 });
+  }, [selectedGraph, setCenter]);
+
   const onConnect = useCallback(
     (params) => setEdges((eds) => addEdge({ ...params, animated: true }, eds)),
-    []
+    [setEdges]
   );
+
+  // Compute minimap colors from CSS tokens so minimap respects theme (dark/light)
+  const minimapColors = React.useMemo(() => {
+    try {
+      const s = getComputedStyle(document.documentElement);
+      const nodeColor = s.getPropertyValue('--cg-node-chat-bg')?.trim() || '#93c5fd';
+      const nodeStroke = s.getPropertyValue('--cg-node-chat-border')?.trim() || '#3b82f6';
+      const mask = s.getPropertyValue('--cg-panel')?.trim() || '#ffffff';
+      return { nodeColor, nodeStroke, mask };
+    } catch {
+      return { nodeColor: '#93c5fd', nodeStroke: '#3b82f6', mask: '#ffffff' };
+    }
+  }, []);
 
   return (
     <div style={{ width: "100%", height: "100%" }}>
       <ReactFlow
         nodes={nodes}
         edges={edges}
+        nodeTypes={nodeTypes}
         onNodesChange={onNodesChange}
         onEdgesChange={onEdgesChange}
         onConnect={onConnect}
@@ -183,9 +248,13 @@ export default function Tree({ user, chats, selectedChat, setSelectedChat, setSh
         fitView
         defaultViewport={{ x: 0, y: 0, zoom: 1 }}
       >
-        <MiniMap />
-        <Controls />
-        <Background color="#e2e8f0" gap={20} />
+        <MiniMap
+          nodeColor={() => minimapColors.nodeColor}
+          nodeStrokeColor={() => minimapColors.nodeStroke}
+          maskColor={minimapColors.mask}
+        />
+  <Controls />
+  <Background gap={20} />
       </ReactFlow>
     </div>
   );

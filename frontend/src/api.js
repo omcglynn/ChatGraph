@@ -1,6 +1,6 @@
-const API_BASE_URL= import.meta.env.VITE_API_BASE || 'http://localhost:3000/api';
+const API_BASE = import.meta.env.VITE_API_BASE || 'http://localhost:3000/api';
 
-export async function fetchData(sb,path,options={}) {
+export async function fetchWithAuth(sb,path,options={}) {
     const {data :{session},error} = await sb.auth.getSession();
     if (error) {
         throw new Error('Failed to get session: ' + error.message);
@@ -13,7 +13,7 @@ export async function fetchData(sb,path,options={}) {
     }
     if(token) headers["Authorization"] =`Bearer ${token}`;
 
-    const response = await fetch(`${API_BASE_URL}${path}`, {
+    const response = await fetch(`${API_BASE}${path}`, {
         ...options,
         headers,
     });

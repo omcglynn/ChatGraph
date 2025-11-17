@@ -1,7 +1,8 @@
 import React, { useState } from "react";
 import Tree from "./Tree";
 import "../App.css"; 
-import "../styles/components/sidebar.css";
+import ThemeToggle from "../components/ThemeToggle";
+import "../styles/index.css";
 import { ReactFlowProvider } from "@xyflow/react";
 
 export default function Homepage({ user, onLogout }) {
@@ -120,9 +121,22 @@ export default function Homepage({ user, onLogout }) {
       <main className="main-content">
         <div className="home-header">
           <h2>Welcome, {user?.email || "User"}</h2>
-          <button className="logout-btn" onClick={onLogout}>
-            Logout
-          </button>
+          <div style={{ display: "flex", gap: 10, alignItems: "center" }}>
+            <ThemeToggle />
+            <button
+              onClick={onLogout}
+              style={{
+                background: "#ef4444",
+                color: "white",
+                padding: "6px 14px",
+                border: "none",
+                borderRadius: "6px",
+                cursor: "pointer",
+              }}
+            >
+              Logout
+            </button>
+          </div>
         </div>
 
         <div className="tree-container">

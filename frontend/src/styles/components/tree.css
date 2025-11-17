@@ -1,0 +1,29 @@
+.react-flow__node {
+    background: #898fa1;
+    border: 1px solid #3a3c41;
+    color: rgb(0, 0, 0);
+    padding: 10px;
+    border-radius: 8px;
+  }
+  
+  .react-flow__handle {
+    width: 10px;
+    height: 10px;
+    background: #000204;
+    border-radius: 50%;
+  }
+
+  .react-flow__minimap {
+    background: #ffffff;
+    border: 1px solid #3a3c41;
+  }
+
+  .react-flow__background {
+    stroke: #ffffff;
+    opacity: 0.6 ;
+  }
+  
+  .react-flow__node:hover {
+    border-color: #3e78ff;
+  }
+  

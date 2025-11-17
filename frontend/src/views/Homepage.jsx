@@ -1,6 +1,7 @@
 import React, { useState } from "react";
-import Tree from "./Tree"; 
+import Tree from "./Tree";
 import "../App.css"; 
+import "../components/sidebar.css";
 import { ReactFlowProvider } from "@xyflow/react";
 
 export default function Homepage({ user, onLogout }) {
@@ -27,11 +28,8 @@ export default function Homepage({ user, onLogout }) {
             },
           ],
         },
-        {
-          text: "Tiramisu dessert",
-          children: [],
-        },
-      ]
+        { text: "Tiramisu dessert", children: [] },
+      ],
     },
     {
       id: 2,
@@ -67,17 +65,13 @@ export default function Homepage({ user, onLogout }) {
     },
   ];
 
-  // Filter chats based on search term (title + summary)
   const filteredChats = chats.filter((chat) => {
     const lowerSearch = searchTerm.toLowerCase();
     const inTitle = chat.title.toLowerCase().includes(lowerSearch);
 
     const inSummary = chat.summary?.some((s) => {
-      if (typeof s === "string") {
-        return s.toLowerCase().includes(lowerSearch);
-      } else if (s.text) {
-        return s.text.toLowerCase().includes(lowerSearch);
-      }
+      if (typeof s === "string") return s.toLowerCase().includes(lowerSearch);
+      if (s.text) return s.text.toLowerCase().includes(lowerSearch);
       return false;
     });
 
@@ -85,134 +79,59 @@ export default function Homepage({ user, onLogout }) {
   });
 
   return (
-    <div style={{ display: "flex", height: "100vh", background: "#f9fafb" }}>
+    <div className="home-wrapper">
       {/* Sidebar */}
-      <aside
-        style={{
-          width: "280px",
-          background: "#e0e7ff",
-          padding: "20px",
-          borderRight: "1px solid #c7d2fe",
-          display: "flex",
-          flexDirection: "column",
-          justifyContent: "space-between",
-          height: "100vh",
-        }}
-      >
-        {/* Top section: search + chats */}
-        <div style={{ overflowY: "auto", flexGrow: 1 }}>
-          <div style={{ marginBottom: "10px" }}>
+      <aside className="sidebar">
+        <div className="sidebar-top">
+          <div className="sidebar-search">
             <input
               type="text"
               placeholder="Search chats..."
               value={searchTerm}
               onChange={(e) => setSearchTerm(e.target.value)}
-              style={{
-                width: "100%",
-                padding: "8px",
-                borderRadius: "8px",
-                border: "1px solid #cbd5e1",
-              }}
             />
           </div>
 
-          {filteredChats.map((chat) => (
-            <div
-              key={chat.id}
-              onClick={() => setSelectedChat(chat)}
-              style={{
-                padding: "10px",
-                marginBottom: "8px",
-                borderRadius: "10px",
-                background: selectedChat?.id === chat.id ? "#3b82f6" : "#ffffff",
-                color: selectedChat?.id === chat.id ? "#fff" : "#111827",
-                fontWeight: selectedChat?.id === chat.id ? "600" : "500",
-                cursor: "pointer",
-                transition: "all 0.2s ease-in-out",
-                boxShadow:
-                  selectedChat?.id === chat.id
-                    ? "0 0 6px rgba(59,130,246,0.5)"
-                    : "0 0 2px rgba(0,0,0,0.1)",
-              }}
-            >
-              {chat.title}
+          <div className="chat-list">
+            {filteredChats.map((chat) => (
               <div
-                style={{
-                  fontSize: "0.8rem",
-                  color: selectedChat?.id === chat.id ? "#dbeafe" : "#6b7280",
-                }}
+                key={chat.id}
+                className={`chat-item ${
+                  selectedChat?.id === chat.id ? "active" : ""
+                }`}
+                onClick={() => setSelectedChat(chat)}
               >
-                {chat.date}
+                <div className="chat-title">{chat.title}</div>
+                <div className="chat-date">{chat.date}</div>
               </div>
-            </div>
-          ))}
+            ))}
+          </div>
         </div>
 
-        {/* Bottom section: Start Chat button */}
         <button
+          className="start-chat-button"
           onClick={() => alert("Starting new chat...")}
-          style={{
-            background: "#3b82f6",
-            color: "white",
-            border: "none",
-            borderRadius: "8px",
-            padding: "12px",
-            fontWeight: "600",
-            cursor: "pointer",
-            transition: "background 0.2s",
-            marginTop: "10px",
-          }}
-          onMouseOver={(e) => (e.currentTarget.style.background = "#2563eb")}
-          onMouseOut={(e) => (e.currentTarget.style.background = "#3b82f6")}
         >
           💬 Start Chat
         </button>
       </aside>
 
       {/* Main Content */}
-      <main style={{ flexGrow: 1, padding: "20px" }}>
-        <div
-          style={{
-            display: "flex",
-            justifyContent: "space-between",
-            alignItems: "center",
-            marginBottom: "20px",
-          }}
-        >
-          <h2 style={{ fontSize: "1.5rem", fontWeight: "700" }}>
-            Welcome, {user?.email || "User"}
-          </h2>
-          <button
-            onClick={onLogout}
-            style={{
-              background: "#ef4444",
-              color: "white",
-              padding: "6px 14px",
-              border: "none",
-              borderRadius: "6px",
-              cursor: "pointer",
-            }}
-          >
+      <main className="main-content">
+        <div className="home-header">
+          <h2>Welcome, {user?.email || "User"}</h2>
+          <button className="logout-btn" onClick={onLogout}>
             Logout
           </button>
         </div>
 
-        {/* Tree visualization section */}
-        <div
-          style={{
-            background: "#fff",
-            borderRadius: "12px",
-            padding: "10px",
-            boxShadow: "0 1px 5px rgba(0,0,0,0.1)",
-            height: "80vh", 
-          }}
-        >
+        <div className="tree-container">
           <ReactFlowProvider>
-            <Tree 
-              user={user} 
-              chats={filteredChats} 
-              selectedChat={selectedChat}  
-              setSelectedChat={setSelectedChat} 
+            <Tree
+              user={user}
+              chats={filteredChats}
+              selectedChat={selectedChat}
+              setSelectedChat={setSelectedChat}
             />
           </ReactFlowProvider>
         </div>

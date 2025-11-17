@@ -1,27 +1,32 @@
-const API_BASE_URL= import.meta.env.VITE_API_BASE || 'http://localhost:3000/api';
+const API_BASE = import.meta.env.VITE_API_BASE || 'http://localhost:3000';
 
-export async function fetchData(sb,path,options={}) {
-    const {data :{session},error} = await sb.auth.getSession();
-    if (error) {
-        throw new Error('Failed to get session: ' + error.message);
+export async function fetchWithAuth(supabase, path, opts = {}) {
+  try {
+    if (!supabase || !supabase.auth) {
+      console.error('Supabase client is not available');
+      throw new Error('Supabase client is not available');
     }
+    
+    const { data: { session } = {} } = await supabase.auth.getSession();
     const token = session?.access_token;
-    if(!token) console.warn("No token found in session");
-    const headers ={
-        "Content-Type": "application/json",
-        ...(options.headers || {}), 
+    
+    if (!token) {
+      console.warn('No authentication token available');
     }
-    if(token) headers["Authorization"] =`Bearer ${token}`;
-
-    const response = await fetch(`${API_BASE_URL}${path}`, {
-        ...options,
-        headers,
-    });
-
-    if(!response.ok){
-        throw new Error(await response.text()||"API request failed")
-    }
-    return response.json();
-
-
+    
+    const headers = {
+      ...(opts.headers || {}),
+      ...(token ? { Authorization: `Bearer ${token}` } : {}),
+      'Content-Type': opts.headers?.['Content-Type'] || 'application/json',
+    };
+    
+    return fetch(`${API_BASE}${path}`, { ...opts, headers });
+  } catch (error) {
+    console.error('Error in fetchWithAuth:', error);
+    throw error;
+  }
 }
+
+export default {
+  fetchWithAuth,
+};

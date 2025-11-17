@@ -11,7 +11,7 @@ import "@xyflow/react/dist/style.css";
 
 export default function App() {
   const [user, setUser] = useState(null)
-
+  
   useEffect(() => {
     supabase.auth.getUser().then(({ data: { user } }) => setUser(user))
 

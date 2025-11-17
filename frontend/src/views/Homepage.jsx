@@ -80,7 +80,7 @@ export default function Homepage({ user, onLogout }) {
   });
 
   return (
-    <div className="home-wrapper">
+    <div style={{ display: "flex", height: "100vh", background: "var(--cg-bg)" }}>
       {/* Sidebar */}
       <aside className="sidebar">
         <div className="sidebar-top">
@@ -119,8 +119,17 @@ export default function Homepage({ user, onLogout }) {
 
       {/* Main Content */}
       <main className="main-content">
-        <div className="home-header">
-          <h2>Welcome, {user?.email || "User"}</h2>
+      <div
+          style={{
+            display: "flex",
+            justifyContent: "space-between",
+            alignItems: "center",
+            marginBottom: "20px",
+          }}
+        >
+          <h2 style={{ fontSize: "1.5rem", fontWeight: "700" }}>
+            Welcome, {user?.email || "User"}
+          </h2>
           <div style={{ display: "flex", gap: 10, alignItems: "center" }}>
             <ThemeToggle />
             <button
@@ -138,6 +147,7 @@ export default function Homepage({ user, onLogout }) {
             </button>
           </div>
         </div>
+        
 
         <div className="tree-container">
           <ReactFlowProvider>

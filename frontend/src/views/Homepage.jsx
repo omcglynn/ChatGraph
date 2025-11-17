@@ -1,7 +1,7 @@
 import React, { useState } from "react";
 import Tree from "./Tree";
 import "../App.css"; 
-import "../components/sidebar.css";
+import "../styles/components/sidebar.css";
 import { ReactFlowProvider } from "@xyflow/react";
 
 export default function Homepage({ user, onLogout }) {

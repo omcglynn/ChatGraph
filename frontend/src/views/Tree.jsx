@@ -10,7 +10,7 @@ import {
   useReactFlow,
 } from "@xyflow/react";
 import "@xyflow/react/dist/style.css";
-import "../components/tree.css";
+import "../styles/components/tree.css";
 
 export default function Tree({ user, chats, selectedChat, setSelectedChat }) {
   const [nodes, setNodes, onNodesChange] = useNodesState([]);

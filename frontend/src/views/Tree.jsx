@@ -10,6 +10,7 @@ import {
   useReactFlow,
 } from "@xyflow/react";
 import "@xyflow/react/dist/style.css";
+import "../components/tree.css";
 
 export default function Tree({ user, chats, selectedChat, setSelectedChat }) {
   const [nodes, setNodes, onNodesChange] = useNodesState([]);
@@ -83,15 +84,15 @@ export default function Tree({ user, chats, selectedChat, setSelectedChat }) {
             y: y + 150,
           },
           style: {
-            background: "#93c5fd", // blue
-            border: "2px solid #3b82f6", // darker blue border
+            background: "#93c5fd",
+            border: "2px solid #3b82f6",
             borderRadius: "8px",
             padding: "8px",
             fontSize: "12px",
             fontWeight: "bold",
             textAlign: "center",
             cursor: hasChildren ? "pointer" : "default",
-          },          
+          },
           children: hasChildren ? item.children : [],
         });
 
@@ -168,7 +169,7 @@ export default function Tree({ user, chats, selectedChat, setSelectedChat }) {
   );
 
   return (
-    <div style={{ width: "100%", height: "100%" }}>
+    <div className="tree-wrapper">
       <ReactFlow
         nodes={nodes}
         edges={edges}
@@ -181,7 +182,7 @@ export default function Tree({ user, chats, selectedChat, setSelectedChat }) {
       >
         <MiniMap />
         <Controls />
-        <Background color="#e2e8f0" gap={20} />
+        <Background />
       </ReactFlow>
     </div>
   );

@@ -1,29 +1,85 @@
+/* Styles to make React Flow match app dark/light tokens */
+.react-flow {
+  background: var(--cg-panel);
+  color: var(--cg-text);
+}
+
+/* Background grid lines (SVG lines inside React Flow background) */
+.react-flow__background svg line,
+.react-flow__background svg path {
+  stroke: rgba(255,255,255,0.04);
+}
+
+/* Controls (zoom, fit, etc) */
+.react-flow__controls {
+  background: rgba(0,0,0,0.0);
+  box-shadow: none;
+  border-radius: 6px;
+}
+.react-flow__controls button {
+  background: rgba(255,255,255,0.03);
+  color: var(--cg-text);
+  border: 1px solid rgba(255,255,255,0.03);
+}
+.react-flow__controls button:hover {
+  background: rgba(255,255,255,0.04);
+}
+
+/* MiniMap styling */
+.react-flow__minimap {
+  border-radius: 8px;
+  border: 1px solid var(--cg-border);
+  background: linear-gradient(0deg, rgba(255,255,255,0.02), rgba(255,255,255,0.01));
+  /* use panel token as base so dark/light themes match */
+  background-color: var(--cg-panel);
+  /* Override internal React Flow minimap background variable (library default is white) */
+  --xy-minimap-background-color-default: var(--cg-panel);
+}
+
+/* The viewport box inside the minimap (the visible area) */
+.react-flow__minimap-viewport {
+  background: transparent !important;
+  border: 1px solid var(--cg-border) !important;
+  box-shadow: none !important;
+}
+
+/* svg nodes inside minimap should not get bright fill */
+.react-flow__minimap svg {
+  background: transparent !important;
+}
+
+/* Hide the small 'React Flow' attribution label and keep the minimap clean */
+.react-flow__attribution {
+  display: none !important;
+}
+
+/* Node handles */
+.react-flow__handle {
+  background: var(--cg-primary);
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+  box-shadow: 0 1px 2px rgba(0,0,0,0.4);
+}
+
+/* Edge color */
+.react-flow__edge-path {
+  stroke: var(--cg-edge-stroke) !important;
+}
+
+/* Make node labels inherit token colors */
 .react-flow__node {
-    background: #898fa1;
-    border: 1px solid #3a3c41;
-    color: rgb(0, 0, 0);
-    padding: 10px;
-    border-radius: 8px;
-  }
-  
-  .react-flow__handle {
-    width: 10px;
-    height: 10px;
-    background: #000204;
-    border-radius: 50%;
-  }
+  color: var(--cg-text);
+}
 
-  .react-flow__minimap {
-    background: #ffffff;
-    border: 1px solid #3a3c41;
-  }
+/* Background dot subtle color based on theme */
+:root {
+  --cg-grid-line: rgba(0,0,0,0.06);
+}
+:root[data-theme="dark"] {
+  --cg-grid-line: rgba(255,255,255,0.03);
+}
 
-  .react-flow__background {
-    stroke: #ffffff;
-    opacity: 0.6 ;
-  }
-  
-  .react-flow__node:hover {
-    border-color: #3e78ff;
-  }
-  
+.react-flow__background svg line {
+  stroke: var(--cg-grid-line);
+}

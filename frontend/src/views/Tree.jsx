@@ -54,6 +54,7 @@ export default function Tree({ user, chats, selectedChat, setSelectedChat }) {
         style: {
           background: "#DBEAFE",
           border: "3px solid #2563eb",
+          color: "#1b2e59ff",
           borderRadius: "10px",
           padding: "10px",
           fontWeight: "bold",
@@ -119,6 +120,7 @@ export default function Tree({ user, chats, selectedChat, setSelectedChat }) {
         data: { label: user?.email || "All Chats" },
         position: { x: 350, y: 0 },
         style: {
+          color: "#465ea0ff",
           background: "#EFF6FF",
           border: "2px solid #3b82f6",
           borderRadius: "10px",

@@ -84,12 +84,13 @@ export default function Homepage({ user, onLogout }) {
       {/* Sidebar */}
       <aside className="sidebar">
         <div className="sidebar-top">
-          <div className="sidebar-search">
+          <div style={{ marginBottom: "10px" }}>
             <input
               type="text"
-              placeholder="Search chats..."
+              placeholder="Search graphs..."
               value={searchTerm}
               onChange={(e) => setSearchTerm(e.target.value)}
+              className="search-input"
             />
           </div>
 

@@ -6,6 +6,10 @@ import "../App.css";
 import "../styles/index.css";
 import { ReactFlowProvider } from "@xyflow/react";
 import { formatDate } from "../utils/dateFormatter";
+import pencilIcon from "../assets/icons/pencil-1.svg";
+import trashIcon from "../assets/icons/trash-3.svg";
+import plusIcon from "../assets/icons/plus.svg";
+
 
 export default function Homepage({ user, onLogout, supabase }) {
   const [selectedGraph, setSelectedGraph] = useState(null);
@@ -17,6 +21,8 @@ export default function Homepage({ user, onLogout, supabase }) {
   const [loadingGraphs, setLoadingGraphs] = useState(false);
   const [loadingChats, setLoadingChats] = useState(false);
   const [graphsError, setGraphsError] = useState(null);
+  const [editingGraphId, setEditingGraphId] = useState(null);
+  const [editingTitle, setEditingTitle] = useState("");
   
   // Track if graphs have been loaded to prevent unnecessary reloads
   const graphsLoadedRef = useRef(false);

@@ -1,13 +1,16 @@
 import React, { useState } from "react";
 import Tree from "./Tree";
+import NewChat from "./newChat";  // Add this import
 import "../App.css"; 
 import ThemeToggle from "../components/ThemeToggle";
 import "../styles/index.css";
 import { ReactFlowProvider } from "@xyflow/react";
 
-export default function Homepage({ user, onLogout }) {
+export default function Homepage({ user, onLogout, supabase }) {  // Add supabase prop
   const [selectedChat, setSelectedChat] = useState(null);
   const [searchTerm, setSearchTerm] = useState("");
+  const [showNewChat, setShowNewChat] = useState(false); 
+  const [graphs, setGraphs] = useState([]);
 
   const chats = [
     {
@@ -112,7 +115,10 @@ export default function Homepage({ user, onLogout }) {
 
         <button
           className="start-chat-button"
-          onClick={() => alert("Starting new chat...")}
+          onClick={() => {
+            setShowNewChat(true);
+            setSelectedChat(null);  // Clear any selected chat
+          }}
         >
           💬 Start Chat
         </button>
@@ -120,7 +126,7 @@ export default function Homepage({ user, onLogout }) {
 
       {/* Main Content */}
       <main className="main-content">
-      <div
+        <div
           style={{
             display: "flex",
             justifyContent: "space-between",
@@ -148,17 +154,29 @@ export default function Homepage({ user, onLogout }) {
             </button>
           </div>
         </div>
-        
 
+        {/* Conditionally render NewChat or Tree */}
         <div className="tree-container">
-          <ReactFlowProvider>
-            <Tree
-              user={user}
-              chats={filteredChats}
-              selectedChat={selectedChat}
-              setSelectedChat={setSelectedChat}
+          {showNewChat ? (
+            <NewChat 
+              supabase={supabase}
+              onCreate={(graph, rootChat) => {
+                // When a graph is created, add it to the graphs list
+                setGraphs((prev) => [graph, ...prev]);
+                // For now, just hide NewChat and show Tree
+                setShowNewChat(false);
+              }}
             />
-          </ReactFlowProvider>
+          ) : (
+            <ReactFlowProvider>
+              <Tree
+                user={user}
+                chats={filteredChats}
+                selectedChat={selectedChat}
+                setSelectedChat={setSelectedChat}
+              />
+            </ReactFlowProvider>
+          )}
         </div>
       </main>
     </div>

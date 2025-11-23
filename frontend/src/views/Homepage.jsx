@@ -1,92 +1,154 @@
-import React, { useState } from "react";
+import React, { useState, useEffect, useCallback, useRef } from "react";
 import Tree from "./Tree";
-import NewChat from "./newChat";  // Add this import
-import "../App.css"; 
+import NewChat from "./newChat";
 import ThemeToggle from "../components/ThemeToggle";
+import "../App.css";
 import "../styles/index.css";
 import { ReactFlowProvider } from "@xyflow/react";
+import { formatDate } from "../utils/dateFormatter";
 
-export default function Homepage({ user, onLogout, supabase }) {  // Add supabase prop
+export default function Homepage({ user, onLogout, supabase }) {
+  const [selectedGraph, setSelectedGraph] = useState(null);
   const [selectedChat, setSelectedChat] = useState(null);
   const [searchTerm, setSearchTerm] = useState("");
-  const [showNewChat, setShowNewChat] = useState(false); 
+  const [showNewChat, setShowNewChat] = useState(false);
   const [graphs, setGraphs] = useState([]);
+  const [chats, setChats] = useState([]);
+  const [loadingGraphs, setLoadingGraphs] = useState(false);
+  const [loadingChats, setLoadingChats] = useState(false);
+  const [graphsError, setGraphsError] = useState(null);
+  
+  // Track if graphs have been loaded to prevent unnecessary reloads
+  const graphsLoadedRef = useRef(false);
+  const lastUserIdRef = useRef(null);
 
-  const chats = [
-    {
-      id: 1,
-      title: "Easy and quick Italian cuisine recipes...",
-      date: "9/22/2025",
-      summary: [
-        {
-          text: "Pasta dishes",
-          children: [
-            {
-              id: "1-0",
-              title: "Spaghetti",
-              summary: [
-                { text: "Ingredients", children: [] },
-                { text: "Cooking steps", children: [] },
-              ],
-              children: [],
-            },
-          ],
-        },
-        { text: "Tiramisu dessert", children: [] },
-      ],
-    },
-    {
-      id: 2,
-      title: "Is mitochondria the powerhouse of the cell?",
-      date: "9/18/2025",
-      summary: [
-        "Discussing cell biology basics",
-        "Why mitochondria matters",
-        "Exploring bioenergy processes",
-      ],
-    },
-    {
-      id: 3,
-      title: "5-Minute Breakfasts for Busy Mornings",
-      date: "9/1/2025",
-      summary: [
-        "Overnight oats variations",
-        "Microwave egg muffins",
-        "Smoothies with hidden veggies",
-      ],
-    },
-    {
-      id: 4,
-      title: "Best Boston Sports Players",
-      date: "8/29/2025",
-      summary: ["David Ortiz", "Bobby Orr", "Tom Brady", "Larry Bird"],
-    },
-    {
-      id: 5,
-      title: "Where in Cape Cod is the best to vacation in?",
-      date: "8/16/2025",
-      summary: ["Falmouth", "Martha's Vineyard", "Dennis", "Mashpee", "Nantucket"],
-    },
-  ];
+  // Load graphs from backend
+  const loadGraphs = useCallback(async (force = false) => {
+    if (!user || !supabase) {
+      graphsLoadedRef.current = false;
+      lastUserIdRef.current = null;
+      setGraphs([]);
+      return;
+    }
+    
+    // Check if user changed
+    const userIdChanged = lastUserIdRef.current !== user.id;
+    lastUserIdRef.current = user.id;
+    
+    // Only reload if user changed, graphs haven't been loaded yet, or force is true
+    if (!force && !userIdChanged && graphsLoadedRef.current) {
+      return;
+    }
+    
+    setLoadingGraphs(true);
+    setGraphsError(null);
+    try {
+      const api = await import('../api');
+      const res = await api.fetchWithAuth(supabase, '/graphs');
+      if (!res.ok) throw new Error(`Failed to load graphs: ${res.status}`);
+      const data = await res.json();
+      setGraphs(Array.isArray(data) ? data : []);
+      graphsLoadedRef.current = true;
+    } catch (err) {
+      console.error("Failed to fetch graphs:", err);
+      setGraphsError(err.message || String(err));
+      graphsLoadedRef.current = false;
+    } finally {
+      setLoadingGraphs(false);
+    }
+  }, [user, supabase]);
 
-  const filteredChats = chats.filter((chat) => {
+  // Load chats for a selected graph
+  const loadChatsForGraph = useCallback(async (graphId, force = false) => {
+    if (!user || !supabase || !graphId) {
+      setChats([]);
+      setSelectedChat(null);
+      return;
+    }
+    
+    // Don't reload if we're already viewing this graph and force is false
+    if (!force && selectedGraph?.id === graphId) {
+      return;
+    }
+    
+    setLoadingChats(true);
+    setChats([]);
+    setSelectedChat(null);
+    
+    try {
+      const api = await import('../api');
+      const res = await api.fetchWithAuth(supabase, `/chats/${graphId}`);
+      
+      if (!res.ok) {
+        // If 404, it might be an empty graph (which is fine)
+        if (res.status === 404) {
+          setChats([]);
+          return;
+        }
+        throw new Error(`Failed to load chats: ${res.status}`);
+      }
+      
+      const data = await res.json();
+      let chatsData = Array.isArray(data) ? data : [];
+
+      // Ensure there's always a root chat (parent_id === null)
+      if (!chatsData.some((chat) => chat?.parent_id == null)) {
+        try {
+          const graphMeta = graphs.find((g) => g.id === graphId) || selectedGraph;
+          const rootTitle = graphMeta?.title || 'Root Chat';
+          const createRootRes = await api.fetchWithAuth(supabase, '/api/chats', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ graphId, title: rootTitle, parentId: null }),
+          });
+
+          if (createRootRes.ok) {
+            const createdPayload = await createRootRes.json();
+            const createdRoot = createdPayload?.chat || createdPayload;
+            if (createdRoot) {
+              chatsData = [createdRoot, ...chatsData];
+            }
+          }
+        } catch (rootErr) {
+          console.error('Failed to create root chat for graph:', rootErr);
+        }
+      }
+
+      setChats(chatsData);
+    } catch (err) {
+      console.error("Failed to fetch chats for graph:", err);
+      setChats([]);
+    } finally {
+      setLoadingChats(false);
+    }
+  }, [user, supabase, selectedGraph, graphs]);
+
+  // Load graphs on mount or when user changes
+  useEffect(() => {
+    loadGraphs();
+  }, [loadGraphs]);
+
+  // Load chats when a graph is selected
+  useEffect(() => {
+    if (selectedGraph?.id) {
+      loadChatsForGraph(selectedGraph.id, true);
+    } else {
+      setChats([]);
+      setSelectedChat(null);
+    }
+  }, [selectedGraph, loadChatsForGraph]);
+
+  // Filter graphs based on search term
+  const filteredGraphs = graphs.filter((g) => {
     const lowerSearch = searchTerm.toLowerCase();
-    const inTitle = chat.title.toLowerCase().includes(lowerSearch);
-
-    const inSummary = chat.summary?.some((s) => {
-      if (typeof s === "string") return s.toLowerCase().includes(lowerSearch);
-      if (s.text) return s.text.toLowerCase().includes(lowerSearch);
-      return false;
-    });
-
-    return inTitle || inSummary;
+    return (g.title || "").toLowerCase().includes(lowerSearch);
   });
 
   return (
     <div style={{ display: "flex", height: "100vh", background: "var(--cg-bg)" }}>
       {/* Sidebar */}
       <aside className="sidebar">
-        <div className="sidebar-top">
+        <div style={{ overflowY: "auto", flexGrow: 1 }}>
           <div style={{ marginBottom: "10px" }}>
             <input
               type="text"
@@ -98,34 +160,56 @@ export default function Homepage({ user, onLogout, supabase }) {  // Add supabas
           </div>
 
           <div className="chat-list">
-            {filteredChats.map((chat) => (
-              <div
-                key={chat.id}
-                className={`chat-item ${
-                  selectedChat?.id === chat.id ? "active" : ""
-                }`}
-                onClick={() => setSelectedChat(chat)}
-              >
-                <div className="chat-title">{chat.title}</div>
-                <div className="chat-date">{chat.date}</div>
-              </div>
-            ))}
+            {loadingGraphs ? (
+              <div style={{ padding: 10, color: 'var(--cg-muted)' }}>Loading graphs...</div>
+            ) : graphsError ? (
+              <div style={{ padding: 10, color: 'var(--cg-muted)' }}>Error: {graphsError}</div>
+            ) : (
+              filteredGraphs.map((g) => (
+                <div
+                  key={g.id}
+                  onClick={() => {
+                    // If clicking the same graph that's already selected, don't reload
+                    if (selectedGraph?.id === g.id) {
+                      return;
+                    }
+                    
+                    setSelectedChat(null);
+                    setShowNewChat(false);
+                    setSelectedGraph(g);
+                    loadChatsForGraph(g.id, true);
+                  }}
+                  className={`chat-item ${selectedGraph?.id === g.id ? "selected" : ""}`}
+                >
+                  <div className="chat-item-content">
+                    <div className="chat-item-title">
+                      <span>{g.title}</span>
+                      <div className="chat-date">{formatDate(g.created_at)}</div>
+                    </div>
+                  </div>
+                </div>
+              ))
+            )}
           </div>
         </div>
 
-        <button
-          className="start-chat-button"
-          onClick={() => {
-            setShowNewChat(true);
-            setSelectedChat(null);  // Clear any selected chat
-          }}
-        >
-          💬 Start Chat
-        </button>
+        <div className="bottom-area">
+          <button
+            onClick={() => {
+              setShowNewChat(true);
+              setSelectedChat(null);
+              setSelectedGraph(null);
+            }}
+            className="start-chat"
+            style={{ display: "flex", alignItems: "center", gap: "8px" }}
+          >
+            💬 New Graph
+          </button>
+        </div>
       </aside>
 
       {/* Main Content */}
-      <main className="main-content">
+      <main style={{ flexGrow: 1, padding: "20px" }}>
         <div
           style={{
             display: "flex",
@@ -156,24 +240,47 @@ export default function Homepage({ user, onLogout, supabase }) {  // Add supabas
         </div>
 
         {/* Conditionally render NewChat or Tree */}
-        <div className="tree-container">
+        <div
+          style={{
+            background: "var(--cg-panel)",
+            borderRadius: "12px",
+            padding: "10px",
+            boxShadow: "var(--cg-shadow)",
+            height: "80vh",
+            display: "flex",
+            flexDirection: "column",
+          }}
+        >
           {showNewChat ? (
-            <NewChat 
+            <NewChat
               supabase={supabase}
               onCreate={(graph, rootChat) => {
-                // When a graph is created, add it to the graphs list
-                setGraphs((prev) => [graph, ...prev]);
-                // For now, just hide NewChat and show Tree
+                // Add newly created graph to sidebar list and select it
+                setGraphs((prev) => [graph, ...(Array.isArray(prev) ? prev : [])]);
+                setSelectedGraph(graph);
                 setShowNewChat(false);
+                if (rootChat) {
+                  setChats([rootChat]);
+                  setSelectedChat(rootChat);
+                }
+                loadChatsForGraph(graph.id, true);
+                // Refresh graphs list to ensure proper sorting
+                loadGraphs(true);
               }}
             />
           ) : (
             <ReactFlowProvider>
               <Tree
-                user={user}
-                chats={filteredChats}
+                chats={chats}
+                selectedGraph={selectedGraph}
                 selectedChat={selectedChat}
                 setSelectedChat={setSelectedChat}
+                loading={loadingChats}
+                supabase={supabase}
+                onChatsUpdate={setChats}
+                onGraphsUpdate={setGraphs}
+                setSelectedGraph={setSelectedGraph}
+                onGraphsRefresh={loadGraphs}
               />
             </ReactFlowProvider>
           )}

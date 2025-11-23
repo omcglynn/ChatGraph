@@ -19,7 +19,7 @@ export default function NewChat({ onCreate, supabase }) {
 
     try {
       if (supabase) {
-        const res = await (await import('../api')).fetchWithAuth(supabase, '/api/graphs', {
+        const res = await (await import('../api')).fetchWithAuth(supabase, '/graphs', {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify({ title: trimmedTitle }),

@@ -21,8 +21,11 @@ export default function Homepage({ user, onLogout, supabase }) {
   const [loadingGraphs, setLoadingGraphs] = useState(false);
   const [loadingChats, setLoadingChats] = useState(false);
   const [graphsError, setGraphsError] = useState(null);
+  const [chatsError, setChatsError] = useState(null);
   const [editingGraphId, setEditingGraphId] = useState(null);
   const [editingTitle, setEditingTitle] = useState("");
+  // Add deletion state
+  const [deletingGraphId, setDeletingGraphId] = useState(null);
   
   // Track if graphs have been loaded to prevent unnecessary reloads
   const graphsLoadedRef = useRef(false);
@@ -78,6 +81,7 @@ export default function Homepage({ user, onLogout, supabase }) {
     }
     
     setLoadingChats(true);
+    setChatsError(null); // Clear previous errors
     setChats([]);
     setSelectedChat(null);
     
@@ -123,6 +127,7 @@ export default function Homepage({ user, onLogout, supabase }) {
       setChats(chatsData);
     } catch (err) {
       console.error("Failed to fetch chats for graph:", err);
+      setChatsError(err.message || String(err));
       setChats([]);
     } finally {
       setLoadingChats(false);
@@ -274,6 +279,27 @@ export default function Homepage({ user, onLogout, supabase }) {
                 loadGraphs(true);
               }}
             />
+          ) : loadingChats ? (
+            <div style={{ 
+              display: 'flex', 
+              alignItems: 'center', 
+              justifyContent: 'center', 
+              flex: 1,
+              color: 'var(--cg-muted)'
+            }}>
+              Loading chats...
+            </div>
+          ) : chatsError ? (
+            <div style={{ 
+              display: 'flex', 
+              alignItems: 'center', 
+              justifyContent: 'center', 
+              flex: 1,
+              color: '#ef4444',
+              padding: '20px'
+            }}>
+              Error loading chats: {chatsError}
+            </div>
           ) : (
             <ReactFlowProvider>
               <Tree

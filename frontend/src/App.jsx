@@ -1,6 +1,4 @@
 import { useState, useEffect } from 'react'
-import { Auth } from '@supabase/auth-ui-react'
-import { ThemeSupa } from '@supabase/auth-ui-shared'
 import './App.css'
 import Homepage from './views/Homepage'
 import Entry from './views/Entry'
@@ -70,5 +68,5 @@ export default function App() {
     </div>
   );
 
-  
+
 }

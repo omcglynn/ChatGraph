@@ -59,7 +59,7 @@ const ChatNode = ({ data }) => {
         <Handle type="target" position={Position.Top} style={{ background: "transparent" }} />
       )}
 
-      {/* -------- Floating Toolbox Fix -------- */}
+      {}
       {showButtons && (
         <div
           style={{
@@ -83,7 +83,7 @@ const ChatNode = ({ data }) => {
           {canDelete && <IconBtn icon={trashIcon} onClick={onDeleteClick} />}
         </div>
       )}
-      {/* -------------------------------------- */}
+      {}
 
       {isEditing ? (
         <input
@@ -109,7 +109,7 @@ const ChatNode = ({ data }) => {
         <>
           <div style={{ wordWrap: "break-word", lineHeight: 1.3 }}>{label}</div>
 
-          {/* Delete Confirmation Panel */}
+          {}
           {showDelete && canDelete && (
             <div
               style={{
@@ -188,9 +188,6 @@ const CONFIG = {
   ROOT_Y: 50,
 };
 
-// ------------------------------
-// LAYOUT
-// ------------------------------
 function computeLayout(chat, depth = 0) {
   const children = chat.children || [];
   const isExpanded = chat._showDelete;
@@ -222,9 +219,6 @@ function assignPositions(chat, startX) {
   });
 }
 
-// ------------------------------
-// MAIN COMPONENT
-// ------------------------------
 export default function Tree(props) {
   const {
     chats,

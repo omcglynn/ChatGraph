@@ -12,15 +12,22 @@ import {
 import "@xyflow/react/dist/style.css";
 import "../styles/components/tree.css";
 
-export default function Tree({ user, chats, selectedChat, setSelectedChat }) {
+export default function Tree({ user, chats, selectedChat, setSelectedChat, setShowChat, selectedGraph, loading }) {
   const [nodes, setNodes, onNodesChange] = useNodesState([]);
   const [edges, setEdges, onEdgesChange] = useEdgesState([]);
   const { setCenter } = useReactFlow();
 
   const handleNodeClick = (event, node) => {
-    if (node.type === "chat") {
-      const chat = chats.find((c) => c.id === node.chatId);
-      if (chat) setSelectedChat(chat);
+    // Check both node.chatId (direct property) and node.data.chatId (in data)
+    const chatId = node.chatId || node.data?.chatId;
+    if (chatId) {
+      const chat = chats.find((c) => c.id === chatId);
+      if (chat) {
+        setSelectedChat(chat);
+        if (setShowChat) {
+          setShowChat(true);
+        }
+      }
       return;
     }
 
@@ -37,9 +44,41 @@ export default function Tree({ user, chats, selectedChat, setSelectedChat }) {
   };
 
   useEffect(() => {
+    if (!selectedGraph || loading) {
+      setNodes([]);
+      setEdges([]);
+      return;
+    }
+
     const nodesList = [];
     const edgesList = [];
 
+    // Filter chats for this graph
+    const graphChats = (chats || []).filter((c) => c.graph_id === selectedGraph.id);
+
+    // Build a map of chats by ID with children arrays
+    const chatMap = new Map();
+    graphChats.forEach((chat) => {
+      chatMap.set(chat.id, { ...chat, children: [] });
+    });
+
+    // Build parent-child relationships
+    const rootChats = [];
+    chatMap.forEach((chat) => {
+      if (chat.parent_id) {
+        const parent = chatMap.get(chat.parent_id);
+        if (parent) {
+          parent.children.push(chat);
+        } else {
+          // Parent not in this graph, treat as root
+          rootChats.push(chat);
+        }
+      } else {
+        rootChats.push(chat);
+      }
+    });
+
+    // Simple layout function
     const buildTree = (chat, depth = 0, index = 0, parentId = null) => {
       const chatNodeId = `chat-${chat.id}`;
       const x = 350 + index * 250 - depth * 100;
@@ -47,13 +86,13 @@ export default function Tree({ user, chats, selectedChat, setSelectedChat }) {
 
       nodesList.push({
         id: chatNodeId,
-        type: "chat",
+        type: "default",
         chatId: chat.id,
         data: { label: chat.title },
         position: { x, y },
         style: {
-          background: "#DBEAFE",
-          border: "3px solid #2563eb",
+          background: chat.parent_id == null ? "#DBEAFE" : "#E0E7FF",
+          border: chat.parent_id == null ? "3px solid #2563eb" : "2px solid #6366f1",
           color: "#1b2e59ff",
           borderRadius: "10px",
           padding: "10px",
@@ -68,97 +107,25 @@ export default function Tree({ user, chats, selectedChat, setSelectedChat }) {
           source: parentId,
           target: chatNodeId,
           style: { stroke: "#60a5fa", strokeWidth: 2 },
+          animated: true,
         });
       }
 
-      chat.summary?.forEach((item, i) => {
-        const summaryId = `${chatNodeId}-summary-${i}`;
-        const hasChildren = item.children && item.children.length > 0;
-
-        nodesList.push({
-          id: summaryId,
-          type: "summary",
-          summaryIndex: i,
-          data: { label: typeof item === "string" ? item : item.text },
-          position: {
-            x: x + i * 180 - (chat.summary.length - 1) * 90,
-            y: y + 150,
-          },
-          style: {
-            background: "#93c5fd",
-            border: "2px solid #3b82f6",
-            borderRadius: "8px",
-            padding: "8px",
-            fontSize: "12px",
-            fontWeight: "bold",
-            textAlign: "center",
-            cursor: hasChildren ? "pointer" : "default",
-          },
-          children: hasChildren ? item.children : [],
-        });
-
-        edgesList.push({
-          id: `edge-${chatNodeId}-${summaryId}`,
-          source: chatNodeId,
-          target: summaryId,
-          style: { stroke: "#3b82f6", strokeWidth: 2 },
-        });
-      });
-
-      chat.children?.forEach((child, childIndex) => {
+      // Recursively build children
+      const children = chat.children || [];
+      children.forEach((child, childIndex) => {
         buildTree(child, depth + 1, childIndex, chatNodeId);
       });
     };
 
-    if (selectedChat) {
-      buildTree(selectedChat);
-    } else {
-      const rootId = "root";
-      nodesList.push({
-        id: rootId,
-        type: "input",
-        data: { label: user?.email || "All Chats" },
-        position: { x: 350, y: 0 },
-        style: {
-          color: "#465ea0ff",
-          background: "#EFF6FF",
-          border: "2px solid #3b82f6",
-          borderRadius: "10px",
-          padding: "10px",
-          fontWeight: "bold",
-        },
-      });
-
-      chats.forEach((chat, i) => {
-        const chatId = `chat-${chat.id}`;
-        nodesList.push({
-          id: chatId,
-          type: "chat",
-          chatId: chat.id,
-          data: { label: chat.title },
-          position: { x: i * 250, y: 200 },
-          style: {
-            background: chat.id % 2 === 0 ? "#ADD8E6" : "#FFDAB9",
-            border: "2px solid #000",
-            borderRadius: "10px",
-            padding: "10px",
-            cursor: "pointer",
-          },
-        });
-
-        edgesList.push({
-          id: `edge-${rootId}-${chatId}`,
-          source: rootId,
-          target: chatId,
-          animated: true,
-          style: { stroke: "#3b82f6", strokeWidth: 2 },
-        });
-      });
-    }
+    // Build tree for each root chat
+    rootChats.forEach((rootChat, index) => {
+      buildTree(rootChat, 0, index, null);
+    });
 
     setNodes(nodesList);
     setEdges(edgesList);
-  }, [selectedChat, user, chats]);
+  }, [selectedGraph, chats, loading]);
 
   useEffect(() => {
     if (!selectedChat) return;

@@ -156,6 +156,23 @@ export default function Homepage({ user, onLogout, supabase }) {
     return (g.title || "").toLowerCase().includes(lowerSearch);
   });
 
+  // Keep URL in sync with selection so reload/links restore state
+  const updateUrl = (gId, cId, isNewChat = false) => {
+    try {
+      let newUrl = '/';
+      if (isNewChat) {
+        newUrl = '/newchat';
+      } else if (gId && cId) {
+        newUrl = `/g/${gId}/c/${cId}`;
+      } else if (gId) {
+        newUrl = `/g/${gId}`;
+      }
+      window.history.replaceState(null, '', newUrl);
+    } catch {
+      // ignore URL update failures
+    }
+  };
+
   return (
     <div style={{ display: "flex", height: "100vh", background: "var(--cg-bg)" }}>
       {/* Sidebar */}

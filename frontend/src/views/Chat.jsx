@@ -38,9 +38,9 @@ export default function Chat({
       try {
         const api = await import('../api');
         // prefer REST param: GET /api/messages/:chatId
-        let res = await api.fetchWithAuth(supabase, `/api/messages/${selectedChat.id}`);
+        let res = await api.fetchWithAuth(supabase, `/messages/${selectedChat.id}`);
         if (!res.ok) {
-          res = await api.fetchWithAuth(supabase, `/api/messages?chatId=${selectedChat.id}`);
+          res = await api.fetchWithAuth(supabase, `/messages?chatId=${selectedChat.id}`);
         }
         if (!res.ok) {
           console.warn('Failed to load messages', res.status);
@@ -77,7 +77,7 @@ export default function Chat({
     try {
       const api = await import('../api');
       const branchTitle = `Branch of ${selectedChat.title || 'Chat'}`;
-      const res = await api.fetchWithAuth(supabase, '/api/chats', {
+      const res = await api.fetchWithAuth(supabase, '/chats', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
@@ -126,7 +126,7 @@ export default function Chat({
 
     try {
       const api = await import('../api');
-      const res = await api.fetchWithAuth(supabase, `/api/chats/${parentId}`);
+      const res = await api.fetchWithAuth(supabase, `/chats/${parentId}`);
       if (res.ok) {
         const payload = await res.json();
         const parentChat = Array.isArray(payload)
@@ -171,7 +171,7 @@ export default function Chat({
         // Persist the user's message to the backend if possible
         try {
           if (supabase && selectedChat?.id) {
-            const res = await (await import('../api')).fetchWithAuth(supabase, '/api/messages', {
+            const res = await (await import('../api')).fetchWithAuth(supabase, '/messages', {
               method: 'POST',
               headers: { 'Content-Type': 'application/json' },
               body: JSON.stringify({ chatId: selectedChat.id, content: text }),
@@ -243,7 +243,7 @@ export default function Chat({
 
     try {
       const api = await import('../api');
-      const res = await api.fetchWithAuth(supabase, `/api/chats/${selectedChat.id}`, {
+      const res = await api.fetchWithAuth(supabase, `/chats/${selectedChat.id}`, {
         method: 'PUT',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ title: editTitleValue.trim() }),
@@ -264,7 +264,7 @@ export default function Chat({
 
         if (!selectedChat.parent_id && selectedChat.graph_id) {
           try {
-            const graphRes = await api.fetchWithAuth(supabase, `/api/graphs/${selectedChat.graph_id}`, {
+            const graphRes = await api.fetchWithAuth(supabase, `/graphs/${selectedChat.graph_id}`, {
               method: 'PUT',
               headers: { 'Content-Type': 'application/json' },
               body: JSON.stringify({ title: editTitleValue.trim() }),

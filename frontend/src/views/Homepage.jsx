@@ -1,5 +1,6 @@
 import React, { useState, useEffect, useCallback, useRef } from "react";
 import Tree from "./Tree";
+import Chat from "./Chat";
 import NewChat from "./newChat";
 import ThemeToggle from "../components/ThemeToggle";
 import "../App.css";
@@ -16,6 +17,7 @@ export default function Homepage({ user, onLogout, supabase }) {
   const [selectedChat, setSelectedChat] = useState(null);
   const [searchTerm, setSearchTerm] = useState("");
   const [showNewChat, setShowNewChat] = useState(false);
+  const [showChat, setShowChat] = useState(false);
   const [graphs, setGraphs] = useState([]);
   const [chats, setChats] = useState([]);
   const [loadingGraphs, setLoadingGraphs] = useState(false);

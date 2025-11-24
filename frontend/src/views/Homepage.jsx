@@ -176,10 +176,7 @@ export default function Homepage({ user, onLogout, supabase }) {
               filteredGraphs.map((g) => (
                 <div
                   key={g.id}
-                  onClick={(e) => {
-                    // Don't trigger graph selection if clicking on buttons or input
-                    if (e.target.closest('.chat-item-actions') || e.target.tagName === 'INPUT') return;
-                    
+                  onClick={() => {
                     // If clicking the same graph that's already selected, don't reload
                     if (selectedGraph?.id === g.id) {
                       return;
@@ -194,33 +191,152 @@ export default function Homepage({ user, onLogout, supabase }) {
                 >
                   <div className="chat-item-content">
                     <div className="chat-item-title">
-                      <span>{g.title}</span>
+                      {editingGraphId === g.id ? (
+                        <input
+                          type="text"
+                          value={editingTitle}
+                          onChange={(e) => setEditingTitle(e.target.value)}
+                          onBlur={async () => {
+                            if (editingTitle.trim() && editingTitle !== g.title) {
+                              try {
+                                const api = await import('../api');
+                                const res = await api.fetchWithAuth(supabase, `/graphs/${g.id}`, {
+                                  method: 'PUT',
+                                  headers: { 'Content-Type': 'application/json' },
+                                  body: JSON.stringify({ title: editingTitle.trim() }),
+                                });
+                                if (res.ok) {
+                                  const updated = await res.json();
+                                  setGraphs((prev) =>
+                                    prev.map((graph) =>
+                                      graph.id === g.id ? updated.graph : graph
+                                    )
+                                  );
+                                  if (selectedGraph?.id === g.id) {
+                                    setSelectedGraph(updated.graph);
+                                  }
+                                  loadGraphs(true);
+                                }
+                              } catch (err) {
+                                console.error('Failed to update graph title:', err);
+                              }
+                            }
+                            setEditingGraphId(null);
+                            setEditingTitle("");
+                          }}
+                          onKeyDown={(e) => {
+                            if (e.key === 'Enter') {
+                              e.target.blur();
+                            } else if (e.key === 'Escape') {
+                              setEditingGraphId(null);
+                              setEditingTitle("");
+                            }
+                          }}
+                          onClick={(e) => e.stopPropagation()}
+                          autoFocus
+                          style={{
+                            background: 'transparent',
+                            border: '1px solid var(--cg-primary)',
+                            borderRadius: '4px',
+                            padding: '4px 8px',
+                            color: 'inherit',
+                            fontSize: 'inherit',
+                            fontWeight: 'inherit',
+                            width: '100%',
+                          }}
+                        />
+                      ) : (
+                        <span>{g.title}</span>
+                      )}
                       <div className="chat-date">{formatDate(g.created_at)}</div>
                     </div>
+                  </div>
+                  {editingGraphId !== g.id && (
                     <div className="chat-item-actions" onClick={(e) => e.stopPropagation()}>
                       <button
-                        className="chat-item-action-btn"
                         onClick={(e) => {
                           e.stopPropagation();
                           setEditingGraphId(g.id);
-                          setEditingTitle(g.title || "");
+                          setEditingTitle(g.title);
                         }}
-                        title="Edit graph name"
+                        className="action-button"
+                        title="Edit"
                       >
-                        <img src={pencilIcon} alt="Edit" style={{ width: "16px", height: "16px" }} />
+                        <img src={pencilIcon} alt="Edit" />
                       </button>
                       <button
-                        className="chat-item-action-btn delete"
                         onClick={(e) => {
                           e.stopPropagation();
                           setDeletingGraphId(g.id);
                         }}
-                        title="Delete graph"
+                        className="action-button"
+                        title="Delete"
                       >
-                        <img src={trashIcon} alt="Delete" style={{ width: "16px", height: "16px" }} />
+                        <img src={trashIcon} alt="Delete" />
                       </button>
                     </div>
-                  </div>
+                  )}
+                  {deletingGraphId === g.id && (
+                    <div
+                      style={{
+                        marginTop: '8px',
+                        padding: '8px',
+                        background: 'rgba(239, 68, 68, 0.1)',
+                        borderRadius: '6px',
+                        border: '1px solid rgba(239, 68, 68, 0.3)',
+                      }}
+                      onClick={(e) => e.stopPropagation()}
+                    >
+                      <div style={{ fontSize: '0.85rem', marginBottom: '8px', color: 'var(--cg-text)' }}>
+                        Delete "{g.title}"? This will delete all chats in this graph.
+                      </div>
+                      <div style={{ display: 'flex', gap: '8px' }}>
+                        <button
+                          className="cg-button"
+                          style={{ 
+                            background: '#ef4444', 
+                            padding: '4px 12px', 
+                            fontSize: '0.85rem',
+                            flex: 1
+                          }}
+                          onClick={async (e) => {
+                            e.stopPropagation();
+                            try {
+                              const api = await import('../api');
+                              const res = await api.fetchWithAuth(supabase, `/graphs/${g.id}`, {
+                                method: 'DELETE',
+                              });
+                              if (res.ok) {
+                                setGraphs((prev) => prev.filter((graph) => graph.id !== g.id));
+                                if (selectedGraph?.id === g.id) {
+                                  setSelectedGraph(null);
+                                  setSelectedChat(null);
+                                  setShowNewChat(true);
+                                  setChats([]);
+                                }
+                                loadGraphs(true);
+                              }
+                            } catch (err) {
+                              console.error('Error deleting graph:', err);
+                            }
+                            setDeletingGraphId(null);
+                          }}
+                        >
+                          Delete
+                        </button>
+                        <button
+                          className="cg-button secondary"
+                          style={{ padding: '4px 12px', fontSize: '0.85rem', flex: 1 }}
+                          onClick={(e) => {
+                            e.stopPropagation();
+                            setDeletingGraphId(null);
+                          }}
+                        >
+                          Cancel
+                        </button>
+                      </div>
+                    </div>
+                  )}
                 </div>
               ))
             )}

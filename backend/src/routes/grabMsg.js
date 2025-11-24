@@ -1,4 +1,3 @@
-// inside routes/messages.js
 import express from "express";
 import { supabase, createUserClient } from "../supabaseClient.js";
 import { aiAnswer } from "../utils/aiResponse.js";
@@ -21,7 +20,6 @@ router.post("/", async (req, res) => {
     if (userError || !userData?.user) return res.status(401).json({ error: "Invalid token" });
 
     const userClient = createUserClient(token);
-
     // Get parent summary, graph_id, and full conversation history
     const { data: chatInfo, error: chatError } = await userClient
       .from("chats")
@@ -60,8 +58,10 @@ router.post("/", async (req, res) => {
 
     if (msgError) return res.status(500).json({ error: msgError.message });
 
-    // AI answer with system prompt + summary
-    const aiText = await aiAnswer(content, systemContext);
+
+    // AI answer with full conversation history + parent summary
+    // aiAnswer will add the conversation history, then add the current prompt
+    const aiText = await aiAnswer(content, conversationHistory || [], parentSummary);
 
     // Insert AI reply
     await userClient
@@ -72,14 +72,24 @@ router.post("/", async (req, res) => {
         author: "ai"
       });
 
-      return res.json({
-        success: true,
-        userMessage,
-        aiMessage: aiText,
-        contextUsed: {
-          parentSummary: systemContext
-        }
-      });
+    // Update the graph's created_at to reflect the modification
+    if (graphId) {
+      await userClient
+        .from("graphs")
+        .update({ created_at: new Date().toISOString() })
+        .eq("id", graphId)
+        .eq("user_id", userData.user.id);
+    }
+
+    return res.json({
+      success: true,
+      userMessage,
+      aiMessage: aiText,
+      contextUsed: {
+        parentSummary: parentSummary,
+        conversationHistoryLength: conversationHistory?.length || 0
+      }
+    });
 
   } catch (err) {
     return res.status(500).json({ error: err.message });

@@ -347,6 +347,7 @@ export default function Tree(props) {
           target: id,
           animated: true,
           style: { stroke: "#60a5fa", strokeWidth: 2 },
+          animated: true,
         });
       }
 

@@ -26,6 +26,10 @@ export default function Homepage({ user, onLogout, supabase }) {
   // Add deletion state
   const [deletingGraphId, setDeletingGraphId] = useState(null);
   
+  // URL routing state - desired ids parsed from URL on initial load
+  const [desiredGraphId, setDesiredGraphId] = useState(null);
+  const [desiredChatId, setDesiredChatId] = useState(null);
+  
   // Track if graphs have been loaded to prevent unnecessary reloads
   const graphsLoadedRef = useRef(false);
   const lastUserIdRef = useRef(null);
@@ -176,7 +180,12 @@ export default function Homepage({ user, onLogout, supabase }) {
               filteredGraphs.map((g) => (
                 <div
                   key={g.id}
-                  onClick={() => {
+                  onClick={(e) => {
+                    // Don't trigger graph selection if clicking on buttons or input
+                    if (e.target.closest('.chat-item-actions') || e.target.tagName === 'INPUT' || e.target.tagName === 'BUTTON' || e.target.closest('button')) {
+                      return;
+                    }
+                    
                     // If clicking the same graph that's already selected, don't reload
                     if (selectedGraph?.id === g.id) {
                       return;
@@ -189,8 +198,8 @@ export default function Homepage({ user, onLogout, supabase }) {
                   }}
                   className={`chat-item ${selectedGraph?.id === g.id ? "selected" : ""}`}
                 >
-                  <div className="chat-item-content">
-                    <div className="chat-item-title">
+                  <div className="chat-item-content" style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', gap: '8px' }}>
+                    <div className="chat-item-title" style={{ flex: 1, minWidth: 0 }}>
                       {editingGraphId === g.id ? (
                         <input
                           type="text"
@@ -250,32 +259,34 @@ export default function Homepage({ user, onLogout, supabase }) {
                       )}
                       <div className="chat-date">{formatDate(g.created_at)}</div>
                     </div>
+                    {editingGraphId !== g.id && (
+                      <div className="chat-item-actions" onClick={(e) => e.stopPropagation()} style={{ flexShrink: 0 }}>
+                        <button
+                          type="button"
+                          className="chat-item-action-btn"
+                          onClick={(e) => {
+                            e.stopPropagation();
+                            setEditingGraphId(g.id);
+                            setEditingTitle(g.title || "");
+                          }}
+                          title="Edit graph name"
+                        >
+                          <img src={pencilIcon} alt="Edit" style={{ width: "14px", height: "14px" }} />
+                        </button>
+                        <button
+                          type="button"
+                          className="chat-item-action-btn delete"
+                          onClick={(e) => {
+                            e.stopPropagation();
+                            setDeletingGraphId(g.id);
+                          }}
+                          title="Delete graph"
+                        >
+                          <img src={trashIcon} alt="Delete" style={{ width: "14px", height: "14px" }} />
+                        </button>
+                      </div>
+                    )}
                   </div>
-                  {editingGraphId !== g.id && (
-                    <div className="chat-item-actions" onClick={(e) => e.stopPropagation()}>
-                      <button
-                        onClick={(e) => {
-                          e.stopPropagation();
-                          setEditingGraphId(g.id);
-                          setEditingTitle(g.title);
-                        }}
-                        className="action-button"
-                        title="Edit"
-                      >
-                        <img src={pencilIcon} alt="Edit" />
-                      </button>
-                      <button
-                        onClick={(e) => {
-                          e.stopPropagation();
-                          setDeletingGraphId(g.id);
-                        }}
-                        className="action-button"
-                        title="Delete"
-                      >
-                        <img src={trashIcon} alt="Delete" />
-                      </button>
-                    </div>
-                  )}
                   {deletingGraphId === g.id && (
                     <div
                       style={{

@@ -242,9 +242,6 @@ export default function Tree(props) {
 
   const nodeTypes = useMemo(() => ({ chat: ChatNode }), []);
 
-  // --------------------------------------------------
-  // Build hierarchical tree from chats
-  // --------------------------------------------------
 
   const roots = useMemo(() => {
     if (!selectedGraph || !chats) return [];
@@ -265,10 +262,6 @@ export default function Tree(props) {
 
     return rootList;
   }, [chats, selectedGraph]);
-
-  // --------------------------------------------------
-  // Layout + Node/Edge generation
-  // --------------------------------------------------
 
   useEffect(() => {
     if (!roots.length || loading) {

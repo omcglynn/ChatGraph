@@ -21,7 +21,6 @@ export default function Homepage({ user, onLogout, supabase }) {
   const [loadingGraphs, setLoadingGraphs] = useState(false);
   const [loadingChats, setLoadingChats] = useState(false);
   const [graphsError, setGraphsError] = useState(null);
-  const [chatsError, setChatsError] = useState(null);
   const [editingGraphId, setEditingGraphId] = useState(null);
   const [editingTitle, setEditingTitle] = useState("");
   // Add deletion state
@@ -81,7 +80,6 @@ export default function Homepage({ user, onLogout, supabase }) {
     }
     
     setLoadingChats(true);
-    setChatsError(null); // Clear previous errors
     setChats([]);
     setSelectedChat(null);
     
@@ -127,7 +125,6 @@ export default function Homepage({ user, onLogout, supabase }) {
       setChats(chatsData);
     } catch (err) {
       console.error("Failed to fetch chats for graph:", err);
-      setChatsError(err.message || String(err));
       setChats([]);
     } finally {
       setLoadingChats(false);
@@ -179,7 +176,10 @@ export default function Homepage({ user, onLogout, supabase }) {
               filteredGraphs.map((g) => (
                 <div
                   key={g.id}
-                  onClick={() => {
+                  onClick={(e) => {
+                    // Don't trigger graph selection if clicking on buttons or input
+                    if (e.target.closest('.chat-item-actions') || e.target.tagName === 'INPUT') return;
+                    
                     // If clicking the same graph that's already selected, don't reload
                     if (selectedGraph?.id === g.id) {
                       return;
@@ -196,6 +196,29 @@ export default function Homepage({ user, onLogout, supabase }) {
                     <div className="chat-item-title">
                       <span>{g.title}</span>
                       <div className="chat-date">{formatDate(g.created_at)}</div>
+                    </div>
+                    <div className="chat-item-actions" onClick={(e) => e.stopPropagation()}>
+                      <button
+                        className="chat-item-action-btn"
+                        onClick={(e) => {
+                          e.stopPropagation();
+                          setEditingGraphId(g.id);
+                          setEditingTitle(g.title || "");
+                        }}
+                        title="Edit graph name"
+                      >
+                        <img src={pencilIcon} alt="Edit" style={{ width: "16px", height: "16px" }} />
+                      </button>
+                      <button
+                        className="chat-item-action-btn delete"
+                        onClick={(e) => {
+                          e.stopPropagation();
+                          setDeletingGraphId(g.id);
+                        }}
+                        title="Delete graph"
+                      >
+                        <img src={trashIcon} alt="Delete" style={{ width: "16px", height: "16px" }} />
+                      </button>
                     </div>
                   </div>
                 </div>
@@ -279,27 +302,6 @@ export default function Homepage({ user, onLogout, supabase }) {
                 loadGraphs(true);
               }}
             />
-          ) : loadingChats ? (
-            <div style={{ 
-              display: 'flex', 
-              alignItems: 'center', 
-              justifyContent: 'center', 
-              flex: 1,
-              color: 'var(--cg-muted)'
-            }}>
-              Loading chats...
-            </div>
-          ) : chatsError ? (
-            <div style={{ 
-              display: 'flex', 
-              alignItems: 'center', 
-              justifyContent: 'center', 
-              flex: 1,
-              color: '#ef4444',
-              padding: '20px'
-            }}>
-              Error loading chats: {chatsError}
-            </div>
           ) : (
             <ReactFlowProvider>
               <Tree

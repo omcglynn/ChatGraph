@@ -21,3 +21,26 @@ button { font-family: inherit; }
 /* Small helpers */
 .container { display: flex; height: 100%; width: 100%; overflow: hidden; }
 .hidden { display: none !important; }
+
+/* Notification animations */
+@keyframes slideInUp {
+  from {
+    transform: translateY(20px);
+    opacity: 0;
+  }
+  to {
+    transform: translateY(0);
+    opacity: 1;
+  }
+}
+
+@keyframes pulse {
+  0%, 100% {
+    opacity: 1;
+    transform: scale(1);
+  }
+  50% {
+    opacity: 0.5;
+    transform: scale(0.9);
+  }
+}

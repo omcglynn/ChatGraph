@@ -1,4 +1,3 @@
-
 import React, { useEffect, useCallback, useState, useMemo, useRef } from "react";
 import {
   ReactFlow,
@@ -15,7 +14,6 @@ import "@xyflow/react/dist/style.css";
 import pencilIcon from "../assets/icons/pencil-1.svg";
 import plusIcon from "../assets/icons/plus.svg";
 import trashIcon from "../assets/icons/trash-3.svg";
-
 
 const ChatNode = ({ data }) => {
   const {
@@ -61,6 +59,32 @@ const ChatNode = ({ data }) => {
         <Handle type="target" position={Position.Top} style={{ background: "transparent" }} />
       )}
 
+      {/* -------- Floating Toolbox Fix -------- */}
+      {showButtons && (
+        <div
+          style={{
+            position: "absolute",
+            top: -40,
+            right: "50%",
+            transform: "translateX(50%)",
+            display: "flex",
+            gap: 6,
+            padding: "6px 8px",
+            borderRadius: 6,
+            background: "var(--cg-panel)",
+            border: "1px solid var(--cg-border)",
+            boxShadow: "var(--cg-shadow)",
+            zIndex: 20,
+          }}
+          onMouseDown={(e) => e.stopPropagation()}
+        >
+          <IconBtn icon={pencilIcon} onClick={onEditStart} />
+          <IconBtn icon={plusIcon} onClick={onCreateChild} />
+          {canDelete && <IconBtn icon={trashIcon} onClick={onDeleteClick} />}
+        </div>
+      )}
+      {/* -------------------------------------- */}
+
       {isEditing ? (
         <input
           value={value}
@@ -85,26 +109,7 @@ const ChatNode = ({ data }) => {
         <>
           <div style={{ wordWrap: "break-word", lineHeight: 1.3 }}>{label}</div>
 
-          {showButtons && (
-            <div
-              style={{
-                display: "flex",
-                gap: 4,
-                marginTop: 6,
-                padding: 4,
-                borderRadius: 6,
-                background: "var(--cg-panel)",
-                boxShadow: "var(--cg-shadow)",
-                border: "1px solid var(--cg-border)",
-              }}
-              onMouseDown={(e) => e.stopPropagation()}
-            >
-              <IconBtn icon={pencilIcon} onClick={onEditStart} />
-              <IconBtn icon={plusIcon} onClick={onCreateChild} />
-              {canDelete && <IconBtn icon={trashIcon} onClick={onDeleteClick} />}
-            </div>
-          )}
-
+          {/* Delete Confirmation Panel */}
           {showDelete && canDelete && (
             <div
               style={{
@@ -174,7 +179,6 @@ const cancelBtn = {
   cursor: "pointer",
 };
 
-
 const CONFIG = {
   NODE_W: 200,
   NODE_W_EXP: 280,
@@ -184,6 +188,9 @@ const CONFIG = {
   ROOT_Y: 50,
 };
 
+// ------------------------------
+// LAYOUT
+// ------------------------------
 function computeLayout(chat, depth = 0) {
   const children = chat.children || [];
   const isExpanded = chat._showDelete;
@@ -215,8 +222,9 @@ function assignPositions(chat, startX) {
   });
 }
 
-
-
+// ------------------------------
+// MAIN COMPONENT
+// ------------------------------
 export default function Tree(props) {
   const {
     chats,
@@ -227,9 +235,6 @@ export default function Tree(props) {
     loading,
     supabase,
     onChatsUpdate,
-    //setSelectedGraph,
-    //onGraphsUpdate,
-    //onGraphsRefresh,
   } = props;
 
   const [editingId, setEditing] = useState(null);
@@ -238,11 +243,10 @@ export default function Tree(props) {
 
   const [nodes, setNodes] = useNodesState([]);
   const [edges, setEdges] = useEdgesState([]);
-  //const { fitView } = useReactFlow();
 
   const nodeTypes = useMemo(() => ({ chat: ChatNode }), []);
 
-
+  // Build hierarchical tree
   const roots = useMemo(() => {
     if (!selectedGraph || !chats) return [];
 
@@ -308,6 +312,7 @@ export default function Tree(props) {
         type: "chat",
         position: { x: chat._layout.x, y: chat._layout.y },
         data: {
+          chatId: chat.id,        
           label: chat.title,
           initialValue: chat.title,
           isEditing,
@@ -371,6 +376,7 @@ export default function Tree(props) {
     setEditing(null);
   };
 
+
   const createChild = async (parentId) => {
     if (!supabase || !selectedGraph) return;
     const api = await import("../api");
@@ -386,6 +392,7 @@ export default function Tree(props) {
     const payload = await res.json();
     onChatsUpdate((prev) => [payload.chat, ...prev]);
   };
+
 
   const confirmDelete = async (id) => {
     if (!supabase) return;
@@ -420,11 +427,13 @@ export default function Tree(props) {
 
 
   const handleNodeClick = useCallback(
-    (e, node) => {
+    (_, node) => {
       if (editingId || deleteId) return;
-      const id = node.data.label ? node.data.label : null;
-      const chat = chats.find((c) => c.id === node.data.chatId);
+
+      const chatId = node.data.chatId;  // ← FIXED
+      const chat = chats.find((c) => c.id === chatId);
       if (!chat) return;
+
       setSelectedChat(chat);
       setShowChat(true);
     },
@@ -446,7 +455,10 @@ export default function Tree(props) {
         edges={edges}
         nodeTypes={nodeTypes}
         onNodeClick={handleNodeClick}
-        onNodeMouseEnter={(_, node) => setHover(node.id.replace("chat-", "") * 1)}
+        onNodeMouseEnter={(_, node) => {
+          const id = Number(node.id.replace("chat-", ""));
+          setHover(id);
+        }}
         onNodeMouseLeave={() => setHover(null)}
       >
         <MiniMap />

@@ -27,6 +27,18 @@ router.post("/", async (req, res) => {
 
     const userClient = createUserClient(token);
 
+    // Fetch parent chat to get its parent_summary (if it's also a branch)
+    const { data: parentChat, error: parentChatError } = await userClient
+      .from("chats")
+      .select("parent_summary")
+      .eq("id", parentChatId)
+      .single();
+
+    if (parentChatError) {
+      console.error("Error fetching parent chat:", parentChatError);
+      return res.status(500).json({ error: "Failed to fetch parent chat" });
+    }
+
     // Load parent messages
     const { data: parentMessages, error: msgError } = await userClient
       .from("messages")
@@ -36,8 +48,18 @@ router.post("/", async (req, res) => {
 
     if (msgError) return res.status(500).json({ error: msgError.message });
 
-    // Create summary
-    const summary = await summarizeChat(parentMessages);
+    // Get the parent's parent_summary (inherited context from grandparent)
+    const parentParentSummary = parentChat?.parent_summary || "";
+
+    // Create summary, including parent's parent_summary for full context chain
+    let summary = "";
+    if (parentMessages && parentMessages.length > 0) {
+      summary = await summarizeChat(parentMessages, parentParentSummary);
+    } else {
+      // If parent has no messages but has inherited context, pass that context along
+      // This ensures branches from empty branches still maintain context chain
+      summary = parentParentSummary;
+    }
 
     // Insert new branch
     const { data: newChat, error: insertError } = await userClient

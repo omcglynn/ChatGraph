@@ -127,13 +127,22 @@ export default function Homepage({ user, onLogout, supabase }) {
       }
 
       setChats(chatsData);
+      
+      // If a desired chat id was parsed from the URL, only select it if it belongs to this graph/user
+      if (desiredChatId) {
+        const foundChat = chatsData.find((ch) => ch.id === desiredChatId);
+        if (foundChat) {
+          setSelectedChat(foundChat);
+        }
+        setDesiredChatId(null);
+      }
     } catch (err) {
       console.error("Failed to fetch chats for graph:", err);
       setChats([]);
     } finally {
       setLoadingChats(false);
     }
-  }, [user, supabase, selectedGraph, graphs]);
+  }, [user, supabase, selectedGraph, graphs, desiredChatId]);
 
   // Load graphs on mount or when user changes
   useEffect(() => {
@@ -155,23 +164,6 @@ export default function Homepage({ user, onLogout, supabase }) {
     const lowerSearch = searchTerm.toLowerCase();
     return (g.title || "").toLowerCase().includes(lowerSearch);
   });
-
-  // Keep URL in sync with selection so reload/links restore state
-  const updateUrl = (gId, cId, isNewChat = false) => {
-    try {
-      let newUrl = '/';
-      if (isNewChat) {
-        newUrl = '/newchat';
-      } else if (gId && cId) {
-        newUrl = `/g/${gId}/c/${cId}`;
-      } else if (gId) {
-        newUrl = `/g/${gId}`;
-      }
-      window.history.replaceState(null, '', newUrl);
-    } catch {
-      // ignore URL update failures
-    }
-  };
 
   return (
     <div style={{ display: "flex", height: "100vh", background: "var(--cg-bg)" }}>
@@ -444,6 +436,8 @@ export default function Homepage({ user, onLogout, supabase }) {
                 loadChatsForGraph(graph.id, true);
                 // Refresh graphs list to ensure proper sorting
                 loadGraphs(true);
+                // Update URL to the new graph
+                updateUrl(graph.id, rootChat?.id || null);
               }}
             />
           ) : (

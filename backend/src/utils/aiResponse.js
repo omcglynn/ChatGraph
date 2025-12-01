@@ -19,14 +19,14 @@ export async function aiAnswer(prompt, conversationHistory = [], parentSummary =
     if (parentSummary) {
       messages.push({
         role: "system",
-        content: `You are a helpful assistant in a program called "ChatGraph", a conversation branching AI program. The user may create a branch off of this conversation at any time at which point a summary of this chat will be provided to the new assistant.
+        content: `You are a helpful assistant in a program called "ChatGraph", a conversation branching AI program. The user may create a branch off of this conversation at any time at which point a summary (which will contain a general context) of this chat will be provided to the new assistant.
         
         This conversation is a branch of a previous chat. Use the following summary as context:\n${parentSummary}\n\n`
       });
     } else {
       messages.push({
         role: "system",
-        content: `You are a helpful assistant in a program called "ChatGraph", a conversation branching AI program. The user may create a branch off of this conversation at any time at which point a summary of this chat will be provided to the new assistant.`
+        content: `You are a helpful assistant in a program called "ChatGraph", a conversation branching AI program. The user may create a branch off of this conversation at any time at which point a summary (which will contain a general context) of this chat will be provided to the new assistant.`
       });
     }
 

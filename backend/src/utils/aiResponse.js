@@ -55,3 +55,61 @@ export async function aiAnswer(prompt, conversationHistory = [], parentSummary =
     return "Sorry, I could not process your request.";
   }
 }
+
+/**
+ * Stream AI response with full conversation history and optional parent summary
+ * @param {string} prompt - Current user message
+ * @param {Array} conversationHistory - Array of {author: 'user'|'ai', content: string} messages from current chat
+ * @param {string} parentSummary - Optional summary from parent chat (for branched conversations)
+ * @returns {AsyncGenerator<string>} - Generator that yields text chunks
+ */
+export async function* aiAnswerStream(prompt, conversationHistory = [], parentSummary = "") {
+  try {
+    const messages = [];
+
+    // System message with parent summary if this is a branched chat
+    if (parentSummary) {
+      messages.push({
+        role: "system",
+        content: `You are a helpful assistant in a program called "ChatGraph", a conversation branching AI program. The user may create a branch off of this conversation at any time at which point a summary (which will contain a general context) of this chat will be provided to the new assistant.
+        
+        This conversation is a branch of a previous chat. Use the following summary as context:\n${parentSummary}\n\n`
+      });
+    } else {
+      messages.push({
+        role: "system",
+        content: `You are a helpful assistant in a program called "ChatGraph", a conversation branching AI program. The user may create a branch off of this conversation at any time at which point a summary (which will contain a general context) of this chat will be provided to the new assistant.`
+      });
+    }
+
+    // Add full conversation history (from current chat only, not children)
+    conversationHistory.forEach((msg) => {
+      if (msg.author === "user") {
+        messages.push({ role: "user", content: msg.content });
+      } else if (msg.author === "ai" || msg.author === "assistant") {
+        messages.push({ role: "assistant", content: msg.content });
+      }
+    });
+
+    // Add current user prompt
+    messages.push({ role: "user", content: prompt });
+
+    const stream = await client.chat.completions.create({
+      model: "gpt-4o-mini",
+      messages: messages,
+      temperature: 0.7,
+      stream: true,
+    });
+
+    for await (const chunk of stream) {
+      const content = chunk.choices[0]?.delta?.content || "";
+      if (content) {
+        yield content;
+      }
+    }
+
+  } catch (err) {
+    console.error("AI STREAM ERROR:", err);
+    yield "Sorry, I could not process your request.";
+  }
+}

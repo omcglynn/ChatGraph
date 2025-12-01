@@ -164,38 +164,92 @@ export default function Chat({
     setInput("");
 
     const thinkingId = `t-${Date.now()}`;
-    const thinkingMsg = { id: thinkingId, role: "assistant", text: "Thinking..." };
+    const thinkingMsg = { id: thinkingId, role: "assistant", text: "" };
     setMessages((m) => [...m, thinkingMsg]);
 
       try {
         // Persist the user's message to the backend if possible
         try {
           if (supabase && selectedChat?.id) {
-            const res = await (await import('../api')).fetchWithAuth(supabase, '/messages', {
+            const api = await import('../api');
+            const session = await supabase.auth.getSession();
+            const token = session?.data?.session?.access_token;
+            
+            if (!token) {
+              throw new Error("No authentication token");
+            }
+
+            // Use streaming endpoint
+            const response = await api.fetchWithAuth(supabase, '/messages/stream', {
               method: 'POST',
               headers: { 'Content-Type': 'application/json' },
               body: JSON.stringify({ chatId: selectedChat.id, content: text }),
             });
-            if (res.ok) {
-              const payload = await res.json();
-              // backend returns { success, userMessage, aiMessage }
-              const saved = payload?.userMessage || payload?.user_message || null;
-              const aiText = payload?.aiMessage || payload?.ai_message || payload?.aiMessage;
-              if (saved?.id) {
-                setMessages((m) => m.map((msg) => (msg.id === userMsg.id ? { ...msg, id: saved.id } : msg)));
-              }
 
-              // Replace thinking message with AI reply if provided, otherwise fall back to echo
-              const replyText = aiText || `Echo: ${text}`;
-              setMessages((m) => m.map((msg) => (msg.id === thinkingId ? { ...msg, text: replyText } : msg)));
-              // Refresh graphs list to update date
-              if (onGraphsRefresh) {
-                onGraphsRefresh(true);
-              }
-              return;
-            } else {
-              console.warn('Failed to persist message', res.status);
+            if (!response.ok) {
+              throw new Error(`HTTP error! status: ${response.status}`);
             }
+
+            const reader = response.body.getReader();
+            const decoder = new TextDecoder();
+            let buffer = "";
+
+            while (true) {
+              const { done, value } = await reader.read();
+              if (done) break;
+
+              buffer += decoder.decode(value, { stream: true });
+              const lines = buffer.split('\n');
+              buffer = lines.pop() || ""; // Keep incomplete line in buffer
+
+              for (const line of lines) {
+                if (line.startsWith('data: ')) {
+                  try {
+                    const data = JSON.parse(line.slice(6));
+                    
+                    if (data.type === 'chunk') {
+                      // Append chunk to the message
+                      setMessages((m) => 
+                        m.map((msg) => 
+                          msg.id === thinkingId 
+                            ? { ...msg, text: (msg.text || "") + data.content }
+                            : msg
+                        )
+                      );
+                    } else if (data.type === 'done') {
+                      // Update with final message ID if provided
+                      const saved = data.userMessage;
+                      const aiMsg = data.aiMessage;
+                      
+                      if (saved?.id) {
+                        setMessages((m) => m.map((msg) => (msg.id === userMsg.id ? { ...msg, id: saved.id } : msg)));
+                      }
+
+                      // Update the thinking message with final AI message
+                      if (aiMsg?.id) {
+                        setMessages((m) => 
+                          m.map((msg) => 
+                            msg.id === thinkingId 
+                              ? { ...msg, id: aiMsg.id, text: aiMsg.content || msg.text }
+                              : msg
+                          )
+                        );
+                      }
+
+                      // Refresh graphs list to update date
+                      if (onGraphsRefresh) {
+                        onGraphsRefresh(true);
+                      }
+                    } else if (data.type === 'error') {
+                      throw new Error(data.error || 'Streaming error');
+                    }
+                  } catch (parseError) {
+                    console.warn('Failed to parse SSE data:', parseError);
+                  }
+                }
+              }
+            }
+            return;
           }
         } catch (persistErr) {
           console.warn('Error persisting message:', persistErr);
@@ -205,7 +259,8 @@ export default function Chat({
         await new Promise((r) => setTimeout(r, 900));
         const botText = `Echo: ${text}`;
         setMessages((m) => m.map((msg) => (msg.id === thinkingId ? { ...msg, text: botText } : msg)));
-    } catch {
+    } catch (err) {
+      console.error('Failed to send message:', err);
       setError("Failed to send message.");
       setMessages((m) => m.filter((msg) => msg.id !== thinkingId));
       setMessages((m) => [

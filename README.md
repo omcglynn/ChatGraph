@@ -15,6 +15,7 @@ Below is a guide to start up and run ChatGraph as if it were your own.
    - Don’t forget to turn on row-level-security for all tables. 
    - Create an OpenAI developers account and get yourself an API key
    - Using the format in the “example.env” files, make “.env” files in the same directory utilizing the relevant information you just created :)
+     - The Supabase info will be the same for both the front and backend env files.
  - Open a terminal in the root directory of the codebase and run “npm install”
  - Run “npm run start”
  - ChatGraph should now be running in your machine! Navigate to localhost:5177 in your browser (or whatever port it is set to after running the start command) and start chatting!

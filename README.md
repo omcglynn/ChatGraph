@@ -1,70 +1,20 @@
-# Getting Started with Create React App
+![chatgraph-logo](./frontend/src/assets/ChatGraphImage1.png)
 
-This project was bootstrapped with [Create React App](https://github.com/facebook/create-react-app).
+# Welcome to ChatGraph
+An issue that is ubiquitous among AI chatbots is the way that they handle context in long conversations. No matter how optimized their context handling, the more your discussion expands, the more muddled the original point becomes in their window. ChatGraph seeks to solve this issue. 
 
-## Available Scripts
+Rather than trying to focus on expanding the size of the context window to prevent lossy information, ChatGraph enables the user to create branches of the conversation, separate from the original. This approach provides the chatbot with a memory of the initial conversation, and the user with the ability to go off on tangents without worry of losing a well tailored chat. 
 
-In the project directory, you can run:
+## Important Startup Details
 
-### `npm start`
-
-Runs the app in the development mode.\
-Open [http://localhost:3000](http://localhost:3000) to view it in your browser.
-
-The page will reload when you make changes.\
-You may also see any lint errors in the console.
-
-### `npm test`
-
-Launches the test runner in the interactive watch mode.\
-See the section about [running tests](https://facebook.github.io/create-react-app/docs/running-tests) for more information.
-
-### `npm run build`
-
-Builds the app for production to the `build` folder.\
-It correctly bundles React in production mode and optimizes the build for the best performance.
-
-The build is minified and the filenames include the hashes.\
-Your app is ready to be deployed!
-
-See the section about [deployment](https://facebook.github.io/create-react-app/docs/deployment) for more information.
-
-### `npm run eject`
-
-**Note: this is a one-way operation. Once you `eject`, you can't go back!**
-
-If you aren't satisfied with the build tool and configuration choices, you can `eject` at any time. This command will remove the single build dependency from your project.
-
-Instead, it will copy all the configuration files and the transitive dependencies (webpack, Babel, ESLint, etc) right into your project so you have full control over them. All of the commands except `eject` will still work, but they will point to the copied scripts so you can tweak them. At this point you're on your own.
-
-You don't have to ever use `eject`. The curated feature set is suitable for small and middle deployments, and you shouldn't feel obligated to use this feature. However we understand that this tool wouldn't be useful if you couldn't customize it when you are ready for it.
-
-## Learn More
-
-You can learn more in the [Create React App documentation](https://facebook.github.io/create-react-app/docs/getting-started).
-
-To learn React, check out the [React documentation](https://reactjs.org/).
-
-### Code Splitting
-
-This section has moved here: [https://facebook.github.io/create-react-app/docs/code-splitting](https://facebook.github.io/create-react-app/docs/code-splitting)
-
-### Analyzing the Bundle Size
-
-This section has moved here: [https://facebook.github.io/create-react-app/docs/analyzing-the-bundle-size](https://facebook.github.io/create-react-app/docs/analyzing-the-bundle-size)
-
-### Making a Progressive Web App
-
-This section has moved here: [https://facebook.github.io/create-react-app/docs/making-a-progressive-web-app](https://facebook.github.io/create-react-app/docs/making-a-progressive-web-app)
-
-### Advanced Configuration
-
-This section has moved here: [https://facebook.github.io/create-react-app/docs/advanced-configuration](https://facebook.github.io/create-react-app/docs/advanced-configuration)
-
-### Deployment
-
-This section has moved here: [https://facebook.github.io/create-react-app/docs/deployment](https://facebook.github.io/create-react-app/docs/deployment)
-
-### `npm run build` fails to minify
-
-This section has moved here: [https://facebook.github.io/create-react-app/docs/troubleshooting#npm-run-build-fails-to-minify](https://facebook.github.io/create-react-app/docs/troubleshooting#npm-run-build-fails-to-minify)
+Below is a guide to start up and run ChatGraph as if it were your own. 
+ - Clone the codebase from here
+   - https://github.com/omcglynn/ChatGraph 
+ - In order for it to function effectively, you will need to ensure that you have the relevant information in the **.env** files. 
+   - Create a Supabase account, create a project and a database, and then use the SQL schema you downloaded to make your tables
+   - Don’t forget to turn on row-level-security for all tables. 
+   - Create an OpenAI developers account and get yourself an API key
+   - Using the format in the “example.env” files, make “.env” files in the same directory utilizing the relevant information you just created :)
+ - Open a terminal in the root directory of the codebase and run “npm install”
+ - Run “npm run start”
+ - ChatGraph should now be running in your machine! Navigate to localhost:5177 in your browser (or whatever port it is set to after running the start command) and start chatting!

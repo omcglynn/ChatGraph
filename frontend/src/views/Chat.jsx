@@ -6,21 +6,22 @@ import plusIcon from "../assets/icons/plus.svg";
 
 export default function Chat({
   selectedChat,
-  onClose /* optional */,
+  onClose ,
   supabase,
   onChatsUpdate,
   setSelectedChat,
   onGraphsRefresh,
   chats = [],
 }) {
-  // No initial messages - parent summary is handled in the backend
   const [messages, setMessages] = useState([]);
   const [input, setInput] = useState("");
   const [sending, setSending] = useState(false);
   const [error, setError] = useState(null);
   const bottomRef = useRef(null);
   const [isEditingTitle, setIsEditingTitle] = useState(false);
-  const [editTitleValue, setEditTitleValue] = useState(selectedChat?.title || "");
+  const [editTitleValue, setEditTitleValue] = useState(
+    selectedChat?.title || ""
+  );
 
   useEffect(() => {
     setMessages([]);
@@ -28,41 +29,41 @@ export default function Chat({
     setError(null);
     setEditTitleValue(selectedChat?.title || "");
     setIsEditingTitle(false);
-    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [selectedChat?.id]);
 
-  // fetch persisted messages from backend for the selected chat
+  // fetch persisted messages
   useEffect(() => {
     const loadMessages = async () => {
       if (!selectedChat?.id || !supabase) return;
       try {
-        const api = await import('../api');
-        // prefer REST param: GET /api/messages/:chatId
-        let res = await api.fetchWithAuth(supabase, `/messages/${selectedChat.id}`);
+        const api = await import("../api");
+        let res = await api.fetchWithAuth(
+          supabase,
+          `/messages/${selectedChat.id}`
+        );
         if (!res.ok) {
-          res = await api.fetchWithAuth(supabase, `/messages?chatId=${selectedChat.id}`);
+          res = await api.fetchWithAuth(
+            supabase,
+            `/messages?chatId=${selectedChat.id}`
+          );
         }
         if (!res.ok) {
-          console.warn('Failed to load messages', res.status);
+          console.warn("Failed to load messages", res.status);
           return;
         }
         const msgs = await res.json();
-        // map backend messages (author/content) to chat message format
         const mapped = (Array.isArray(msgs) ? msgs : []).map((m) => ({
           id: m.id,
-          role: m.author === 'user' ? 'user' : 'assistant',
+          role: m.author === "user" ? "user" : "assistant",
           text: m.content,
         }));
-
-        // Set messages directly - no system messages or parent summary shown to user
         setMessages(mapped);
       } catch (err) {
-        console.error('Error loading messages for chat', err);
+        console.error("Error loading messages for chat", err);
       }
     };
 
     loadMessages();
-    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [selectedChat?.id, supabase]);
 
   useEffect(() => {
@@ -70,16 +71,14 @@ export default function Chat({
   }, [messages]);
 
   const handleBranchChat = async () => {
-    if (!selectedChat?.id || !selectedChat?.graph_id || !supabase) {
-      return;
-    }
+    if (!selectedChat?.id || !selectedChat?.graph_id || !supabase) return;
 
     try {
-      const api = await import('../api');
-      const branchTitle = `Branch of ${selectedChat.title || 'Chat'}`;
-      const res = await api.fetchWithAuth(supabase, '/chats', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
+      const api = await import("../api");
+      const branchTitle = `Branch of ${selectedChat.title || "Chat"}`;
+      const res = await api.fetchWithAuth(supabase, "/chats", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
           graphId: selectedChat.graph_id,
           title: branchTitle,
@@ -97,16 +96,12 @@ export default function Chat({
               return [newChat, ...list];
             });
           }
-          if (setSelectedChat) {
-            setSelectedChat(newChat);
-          }
-          if (onGraphsRefresh) {
-            onGraphsRefresh(true);
-          }
+          if (setSelectedChat) setSelectedChat(newChat);
+          if (onGraphsRefresh) onGraphsRefresh(true);
         }
       }
     } catch (err) {
-      console.error('Failed to branch chat:', err);
+      console.error("Failed to branch chat:", err);
     }
   };
 
@@ -114,18 +109,18 @@ export default function Chat({
     const parentId = selectedChat?.parent_id;
     if (!parentId) return;
 
-    const parentFromList = Array.isArray(chats) ? chats.find((chat) => chat.id === parentId) : null;
+    const parentFromList = Array.isArray(chats)
+      ? chats.find((chat) => chat.id === parentId)
+      : null;
     if (parentFromList) {
-      if (setSelectedChat) {
-        setSelectedChat(parentFromList);
-      }
+      if (setSelectedChat) setSelectedChat(parentFromList);
       return;
     }
 
     if (!supabase) return;
 
     try {
-      const api = await import('../api');
+      const api = await import("../api");
       const res = await api.fetchWithAuth(supabase, `/chats/${parentId}`);
       if (res.ok) {
         const payload = await res.json();
@@ -137,81 +132,106 @@ export default function Chat({
           if (onChatsUpdate) {
             onChatsUpdate((prev) => {
               const list = Array.isArray(prev) ? prev : [];
-              if (list.some((c) => c.id === parentChat.id)) {
-                return list;
-              }
+              if (list.some((c) => c.id === parentChat.id)) return list;
               return [parentChat, ...list];
             });
           }
-          if (setSelectedChat) {
-            setSelectedChat(parentChat);
-          }
+          if (setSelectedChat) setSelectedChat(parentChat);
         }
       }
     } catch (err) {
-      console.error('Failed to navigate to parent chat:', err);
+      console.error("Failed to navigate to parent chat:", err);
     }
   };
+
+  // helper: update text of a message by id
+  const updateMessageText = (id, text) => {
+    setMessages((prev) =>
+      prev.map((msg) =>
+        msg.id === id
+          ? {
+              ...msg,
+              text,
+            }
+          : msg
+      )
+    );
+  };
+
+//streaming
+const typeOutText = async (id, fullText, delay = 1) => {
+  if (!fullText) {
+    updateMessageText(id, "");
+    return;
+  }
+
+  const chunkSize = 12; // show 12 characters at a time
+  for (let i = chunkSize; i <= fullText.length + chunkSize; i += chunkSize) {
+    const slice = fullText.slice(0, i);
+    updateMessageText(id, slice);
+    await new Promise((r) => setTimeout(r, delay));
+  }
+};
+
 
   const sendMessage = async () => {
     const text = input.trim();
     if (!text) return;
+    if (!selectedChat?.id || !supabase) return;
+
     setSending(true);
     setError(null);
 
-    const userMsg = { id: `u-${Date.now()}`, role: "user", text };
+    const localUserId = `u-${Date.now()}`;
+    const userMsg = { id: localUserId, role: "user", text };
     setMessages((m) => [...m, userMsg]);
     setInput("");
 
     const thinkingId = `t-${Date.now()}`;
-    const thinkingMsg = { id: thinkingId, role: "assistant", text: "Thinking..." };
-    setMessages((m) => [...m, thinkingMsg]);
+    setMessages((m) => [
+      ...m,
+      { id: thinkingId, role: "assistant", text: "" },
+    ]);
 
-      try {
-        // Persist the user's message to the backend if possible
-        try {
-          if (supabase && selectedChat?.id) {
-            const res = await (await import('../api')).fetchWithAuth(supabase, '/messages', {
-              method: 'POST',
-              headers: { 'Content-Type': 'application/json' },
-              body: JSON.stringify({ chatId: selectedChat.id, content: text }),
-            });
-            if (res.ok) {
-              const payload = await res.json();
-              // backend returns { success, userMessage, aiMessage }
-              const saved = payload?.userMessage || payload?.user_message || null;
-              const aiText = payload?.aiMessage || payload?.ai_message || payload?.aiMessage;
-              if (saved?.id) {
-                setMessages((m) => m.map((msg) => (msg.id === userMsg.id ? { ...msg, id: saved.id } : msg)));
-              }
+    try {
+      const api = await import("../api");
+      const res = await api.fetchWithAuth(supabase, "/messages", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ chatId: selectedChat.id, content: text }),
+      });
 
-              // Replace thinking message with AI reply if provided, otherwise fall back to echo
-              const replyText = aiText || `Echo: ${text}`;
-              setMessages((m) => m.map((msg) => (msg.id === thinkingId ? { ...msg, text: replyText } : msg)));
-              // Refresh graphs list to update date
-              if (onGraphsRefresh) {
-                onGraphsRefresh(true);
-              }
-              return;
-            } else {
-              console.warn('Failed to persist message', res.status);
-            }
-          }
-        } catch (persistErr) {
-          console.warn('Error persisting message:', persistErr);
-        }
+      if (!res.ok) {
+        console.warn("Failed to persist message", res.status);
+        throw new Error("Bad response status");
+      }
 
-        // Fallback local echo if backend not available
-        await new Promise((r) => setTimeout(r, 900));
-        const botText = `Echo: ${text}`;
-        setMessages((m) => m.map((msg) => (msg.id === thinkingId ? { ...msg, text: botText } : msg)));
-    } catch {
+      const payload = await res.json();
+      const savedUser =
+        payload?.userMessage || payload?.user_message || null;
+      const aiText =
+        payload?.aiMessage || payload?.ai_message || payload?.ai_text;
+
+      // swap temp user ID with DB ID if available
+      if (savedUser?.id) {
+        setMessages((prev) =>
+          prev.map((msg) =>
+            msg.id === localUserId ? { ...msg, id: savedUser.id } : msg
+          )
+        );
+      }
+
+      const reply = aiText || `Echo: ${text}`;
+      await typeOutText(thinkingId, reply, 15);
+
+      if (onGraphsRefresh) onGraphsRefresh(true);
+    } catch (err) {
+      console.error("Failed to send message", err);
       setError("Failed to send message.");
-      setMessages((m) => m.filter((msg) => msg.id !== thinkingId));
-      setMessages((m) => [
-        ...m,
-        { id: `err-${Date.now()}`, role: "assistant", text: "Error: failed to get response." },
-      ]);
+      updateMessageText(
+        thinkingId,
+        "Error: failed to get response from the AI."
+      );
     } finally {
       setSending(false);
     }
@@ -242,51 +262,61 @@ export default function Chat({
     }
 
     try {
-      const api = await import('../api');
-      const res = await api.fetchWithAuth(supabase, `/chats/${selectedChat.id}`, {
-        method: 'PUT',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ title: editTitleValue.trim() }),
-      });
+      const api = await import("../api");
+      const res = await api.fetchWithAuth(
+        supabase,
+        `/chats/${selectedChat.id}`,
+        {
+          method: "PUT",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ title: editTitleValue.trim() }),
+        }
+      );
 
       if (res.ok) {
         const updated = await res.json();
         if (onChatsUpdate) {
-          onChatsUpdate((prev) => prev.map((c) => (c.id === selectedChat.id ? updated.chat : c)));
+          onChatsUpdate((prev) =>
+            prev.map((c) => (c.id === selectedChat.id ? updated.chat : c))
+          );
         }
-        if (setSelectedChat) {
-          setSelectedChat(updated.chat);
-        }
-        // Refresh graphs list to update date
-        if (onGraphsRefresh) {
-          onGraphsRefresh(true);
-        }
+        if (setSelectedChat) setSelectedChat(updated.chat);
+        if (onGraphsRefresh) onGraphsRefresh(true);
 
         if (!selectedChat.parent_id && selectedChat.graph_id) {
           try {
-            const graphRes = await api.fetchWithAuth(supabase, `/graphs/${selectedChat.graph_id}`, {
-              method: 'PUT',
-              headers: { 'Content-Type': 'application/json' },
-              body: JSON.stringify({ title: editTitleValue.trim() }),
-            });
+            const graphRes = await api.fetchWithAuth(
+              supabase,
+              `/graphs/${selectedChat.graph_id}`,
+              {
+                method: "PUT",
+                headers: { "Content-Type": "application/json" },
+                body: JSON.stringify({ title: editTitleValue.trim() }),
+              }
+            );
 
             if (graphRes.ok) {
               const graphPayload = await graphRes.json();
               const rootChat = graphPayload?.rootChat;
               if (rootChat && onChatsUpdate) {
-                onChatsUpdate((prev) => prev.map((c) => (c.id === rootChat.id ? rootChat : c)));
+                onChatsUpdate((prev) =>
+                  prev.map((c) => (c.id === rootChat.id ? rootChat : c))
+                );
               }
               if (rootChat && setSelectedChat) {
                 setSelectedChat(rootChat);
               }
             }
           } catch (err) {
-            console.error('Failed to sync graph title from chat view:', err);
+            console.error(
+              "Failed to sync graph title from chat view:",
+              err
+            );
           }
         }
       }
     } catch (err) {
-      console.error('Failed to update chat title:', err);
+      console.error("Failed to update chat title:", err);
     }
 
     setIsEditingTitle(false);
@@ -300,7 +330,14 @@ export default function Chat({
   return (
     <div className="chat-container">
       <div className="chat-header">
-        <div style={{ display: "flex", gap: 12, alignItems: "center", flexWrap: "wrap" }}>
+        <div
+          style={{
+            display: "flex",
+            gap: 12,
+            alignItems: "center",
+            flexWrap: "wrap",
+          }}
+        >
           <button
             onClick={() => {
               if (typeof onClose === "function") onClose();
@@ -369,7 +406,11 @@ export default function Chat({
                 }}
                 title="Edit chat title"
               >
-                <img src={pencilIcon} alt="Edit" style={{ width: "16px", height: "16px" }} />
+                <img
+                  src={pencilIcon}
+                  alt="Edit"
+                  style={{ width: "16px", height: "16px" }}
+                />
               </button>
             </div>
           )}
@@ -387,7 +428,9 @@ export default function Chat({
             className={`chat-message ${m.role === "user" ? "user" : "bot"}`}
           >
             <div className={`chat-bubble ${m.role === "user" ? "user" : "bot"}`}>
-              <ReactMarkdown remarkPlugins={[remarkGfm]}>{m.text || ""}</ReactMarkdown>
+              <ReactMarkdown remarkPlugins={[remarkGfm]}>
+                {m.text || ""}
+              </ReactMarkdown>
             </div>
           </div>
         ))}
@@ -399,7 +442,12 @@ export default function Chat({
           className="cg-button secondary"
           onClick={handleBranchChat}
           disabled={!selectedChat || !supabase || sending}
-          style={{ display: "flex", alignItems: "center", gap: 6, whiteSpace: "nowrap" }}
+          style={{
+            display: "flex",
+            alignItems: "center",
+            gap: 6,
+            whiteSpace: "nowrap",
+          }}
           title="Branch this chat"
           type="button"
         >
@@ -425,7 +473,9 @@ export default function Chat({
       </div>
 
       {error && (
-        <div style={{ padding: 8, color: "#b91c1c", fontSize: "0.9rem" }}>{error}</div>
+        <div style={{ padding: 8, color: "#b91c1c", fontSize: "0.9rem" }}>
+          {error}
+        </div>
       )}
     </div>
   );

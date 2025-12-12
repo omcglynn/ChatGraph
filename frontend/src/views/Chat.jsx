@@ -4,6 +4,46 @@ import remarkGfm from "remark-gfm";
 import pencilIcon from "../assets/icons/pencil-1.svg";
 import plusIcon from "../assets/icons/plus.svg";
 
+// Notification Toast Component
+const NotificationToast = ({ message, visible }) => {
+  if (!visible) return null;
+
+  return (
+    <div
+      style={{
+        position: "fixed",
+        bottom: "20px",
+        right: "20px",
+        padding: "12px 16px",
+        background: "var(--cg-panel)",
+        border: "2px solid var(--cg-primary)",
+        borderRadius: "8px",
+        boxShadow: "var(--cg-shadow)",
+        color: "var(--cg-text)",
+        fontSize: "0.9rem",
+        fontWeight: "500",
+        zIndex: 1000,
+        display: "flex",
+        alignItems: "center",
+        gap: "8px",
+        animation: "slideInUp 0.3s ease-out",
+        maxWidth: "300px",
+      }}
+    >
+      <div
+        style={{
+          width: "8px",
+          height: "8px",
+          borderRadius: "50%",
+          background: "var(--cg-primary)",
+          animation: "pulse 1.5s ease-in-out infinite",
+        }}
+      />
+      <span>{message}</span>
+    </div>
+  );
+};
+
 export default function Chat({
   selectedChat,
   onClose ,
@@ -20,6 +60,7 @@ export default function Chat({
   const bottomRef = useRef(null);
   const [isEditingTitle, setIsEditingTitle] = useState(false);
   const [thinkingMessageId, setThinkingMessageId] = useState(null);
+  const [notification, setNotification] = useState(null);
   const [editTitleValue, setEditTitleValue] = useState(
     selectedChat?.title || ""
   );
@@ -74,9 +115,12 @@ export default function Chat({
   const handleBranchChat = async () => {
     if (!selectedChat?.id || !selectedChat?.graph_id || !supabase) return;
 
+    const chatTitle = selectedChat.title || "Chat";
+    setNotification(`Creating branch from "${chatTitle}"...`);
+
     try {
       const api = await import("../api");
-      const branchTitle = `Branch of ${selectedChat.title || "Chat"}`;
+      const branchTitle = `Branch of ${chatTitle}`;
       const res = await api.fetchWithAuth(supabase, "/chats", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
@@ -99,10 +143,24 @@ export default function Chat({
           }
           if (setSelectedChat) setSelectedChat(newChat);
           if (onGraphsRefresh) onGraphsRefresh(true);
+          
+          // Hide notification after a short delay
+          setTimeout(() => {
+            setNotification(null);
+          }, 1500);
         }
+      } else {
+        setNotification("Failed to create branch. Please try again.");
+        setTimeout(() => {
+          setNotification(null);
+        }, 3000);
       }
     } catch (err) {
       console.error("Failed to branch chat:", err);
+      setNotification("Failed to create branch. Please try again.");
+      setTimeout(() => {
+        setNotification(null);
+      }, 3000);
     }
   };
 
@@ -489,6 +547,12 @@ const typeOutText = async (id, fullText, delay = 1) => {
           {error}
         </div>
       )}
+
+      {/* Notification toast */}
+      <NotificationToast 
+        message={notification} 
+        visible={!!notification}
+      />
     </div>
   );
 }

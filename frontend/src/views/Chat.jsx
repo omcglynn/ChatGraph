@@ -19,6 +19,7 @@ export default function Chat({
   const [error, setError] = useState(null);
   const bottomRef = useRef(null);
   const [isEditingTitle, setIsEditingTitle] = useState(false);
+  const [thinkingMessageId, setThinkingMessageId] = useState(null);
   const [editTitleValue, setEditTitleValue] = useState(
     selectedChat?.title || ""
   );
@@ -188,6 +189,7 @@ const typeOutText = async (id, fullText, delay = 1) => {
     setInput("");
 
     const thinkingId = `t-${Date.now()}`;
+    setThinkingMessageId(thinkingId);
     setMessages((m) => [
       ...m,
       { id: thinkingId, role: "assistant", text: "" },
@@ -222,12 +224,14 @@ const typeOutText = async (id, fullText, delay = 1) => {
       }
 
       const reply = aiText || `Echo: ${text}`;
+      setThinkingMessageId(null);
       await typeOutText(thinkingId, reply, 15);
 
       if (onGraphsRefresh) onGraphsRefresh(true);
     } catch (err) {
       console.error("Failed to send message", err);
       setError("Failed to send message.");
+      setThinkingMessageId(null);
       updateMessageText(
         thinkingId,
         "Error: failed to get response from the AI."
@@ -428,9 +432,17 @@ const typeOutText = async (id, fullText, delay = 1) => {
             className={`chat-message ${m.role === "user" ? "user" : "bot"}`}
           >
             <div className={`chat-bubble ${m.role === "user" ? "user" : "bot"}`}>
-              <ReactMarkdown remarkPlugins={[remarkGfm]}>
-                {m.text || ""}
-              </ReactMarkdown>
+              {m.id === thinkingMessageId && !m.text ? (
+                <div className="thinking-indicator">
+                  <span className="thinking-dot"></span>
+                  <span className="thinking-dot"></span>
+                  <span className="thinking-dot"></span>
+                </div>
+              ) : (
+                <ReactMarkdown remarkPlugins={[remarkGfm]}>
+                  {m.text || ""}
+                </ReactMarkdown>
+              )}
             </div>
           </div>
         ))}
